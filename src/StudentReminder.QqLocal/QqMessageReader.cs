@@ -22,6 +22,10 @@ public sealed class QqMessageReader : IDisposable
 {
     private const string C2cTable = "c2c_msg_table";
     private const string GroupTable = "group_msg_table";
+    // Use the peer's number, which is independent of the direction of the message.
+    private const string PeerNumber = """
+        case when cast("40030" as text) not glob '*[^0-9]*' then nullif(ltrim("40030", '0'), '') end
+        """;
     /// <summary>Message column holding the sender's nickname as a snapshot taken at send time.</summary>
     private const string SenderNameColumn = "40093";
 
@@ -31,11 +35,15 @@ public sealed class QqMessageReader : IDisposable
     private readonly Dictionary<string, string> _groupNames = new(StringComparer.Ordinal);
     private readonly Dictionary<(string Group, string Uid), string> _groupMembers = new(); // (group id, uid) -> display name
     private readonly Dictionary<string, bool> _hasSenderName = new(StringComparer.Ordinal); // table -> has 40093
+    private readonly HashSet<string> _publicAccounts = new(StringComparer.Ordinal);
+    private readonly bool _hasPrivatePeerNumber;
+    private Dictionary<string, string>? _recentPrivateNames;
 
     public QqMessageReader(string decryptedDir)
     {
         _root = decryptedDir;
         _msg = Open(Path.Combine(decryptedDir, "nt_msg.db"));
+        _hasPrivatePeerNumber = TableColumns(_msg, C2cTable).Contains("40030");
         LoadNames();
     }
 
@@ -52,9 +60,34 @@ public sealed class QqMessageReader : IDisposable
         _groupNames.Clear();
         LoadNameMap("profile_info.db", _names);
         LoadQqNtBuddyNames();
+        LoadQqNtPublicAccountNames();
         LoadQqNtGroupNames();
         LoadQqNtGroupMembers();
         LoadNameMap("group_info.db", _groupNames);
+    }
+
+    private void LoadQqNtPublicAccountNames()
+    {
+        var path = Path.Combine(_root, "profile_info.db");
+        if (!File.Exists(path)) return;
+        try
+        {
+            using var connection = Open(path);
+            var columns = TableColumns(connection, "profile_info_public_account");
+            if (!columns.Contains("1000")) return;
+            if (columns.Contains("20002"))
+                ReadNameMap(connection, "profile_info_public_account", "1000", "20002", _names);
+            using var command = connection.CreateCommand();
+            command.CommandText = """select "1000" from profile_info_public_account""";
+            using var reader = command.ExecuteReader();
+            while (reader.Read())
+            {
+                var uid = TextOf(reader, 0);
+                if (uid.Length > 0) _publicAccounts.Add(uid);
+            }
+        }
+        catch (SqliteException) { }
+        catch (IOException) { }
     }
 
     /// <summary>Best-effort uid/name mapping from a decrypted sibling database.</summary>
@@ -253,10 +286,31 @@ public sealed class QqMessageReader : IDisposable
         return tables;
     }
 
-    private string DisplayName(string id)
+    private string PrivateName(string id)
     {
-        if (string.IsNullOrEmpty(id)) return "";
-        return _names.TryGetValue(id, out var name) && name.Length > 0 ? name : id;
+        if (_names.TryGetValue(id, out var name) && name != id) return PrivateLabel(id, name);
+        if (!id.StartsWith("u_", StringComparison.Ordinal)) return "";
+
+        if (_recentPrivateNames is null)
+        {
+            _recentPrivateNames = new(StringComparer.Ordinal);
+            var columns = TableColumns(_msg, "recent_contact_v3_table");
+            if (columns.Contains("40021") && columns.Contains("40094"))
+                ReadNameMap(_msg, "recent_contact_v3_table", "40021", "40094", _recentPrivateNames);
+        }
+        return _recentPrivateNames.TryGetValue(id, out name) && name != id ? PrivateLabel(id, name) : "";
+    }
+
+    private string PrivateLabel(string id, string name) =>
+        _publicAccounts.Contains(id) ? $"QQ 公众号 · {name}" : name;
+
+    private string PrivateFallbackName(string id, string peerNumber)
+    {
+        if (!id.StartsWith("u_", StringComparison.Ordinal)) return id;
+        var isPublicAccount = _publicAccounts.Contains(id);
+        if (peerNumber.Length > 0) return isPublicAccount ? $"QQ 公众号 {peerNumber}" : $"QQ {peerNumber}";
+        var label = isPublicAccount ? "QQ 公众号" : "未知 QQ 会话";
+        return $"{label}（{id[Math.Max(2, id.Length - 6)..]}）";
     }
 
     private string GroupName(string id)
@@ -265,7 +319,20 @@ public sealed class QqMessageReader : IDisposable
         return _groupNames.TryGetValue(id, out var name) && !string.IsNullOrWhiteSpace(name) ? name : id;
     }
 
-    public string GetConversationName(string id, bool group) => group ? GroupName(id) : DisplayName(id);
+    public string GetConversationName(string id, bool group)
+    {
+        if (group) return GroupName(id);
+        var name = PrivateName(id);
+        if (name.Length > 0) return name;
+        if (!_hasPrivatePeerNumber || !id.StartsWith("u_", StringComparison.Ordinal))
+            return PrivateFallbackName(id, "");
+
+        using var command = _msg.CreateCommand();
+        command.CommandText = $"select min({PeerNumber}), max({PeerNumber}) from c2c_msg_table where \"40021\" = $id";
+        command.Parameters.AddWithValue("$id", id);
+        using var reader = command.ExecuteReader();
+        return PrivateFallbackName(id, reader.Read() ? ReadPeerNumber(reader, 0) : "");
+    }
 
     /// <summary>Distinct conversations from the c2c and group tables, ordered by last activity.</summary>
     public IReadOnlyList<QqConversation> ListConversations()
@@ -274,25 +341,37 @@ public sealed class QqMessageReader : IDisposable
         var conversations = new List<QqConversation>();
         if (tables.Contains(GroupTable))
         {
-            foreach (var (id, count, last) in Summarize(GroupTable, "group"))
+            foreach (var (id, count, last, _) in Summarize(GroupTable, false))
                 conversations.Add(new QqConversation(id, GroupName(id), "group", last, count));
         }
         if (tables.Contains(C2cTable))
         {
-            foreach (var (id, count, last) in Summarize(C2cTable, "private"))
-                conversations.Add(new QqConversation(id, DisplayName(id), "private", last, count));
+            foreach (var (id, count, last, peerNumber) in Summarize(C2cTable, _hasPrivatePeerNumber))
+            {
+                var name = PrivateName(id);
+                conversations.Add(new QqConversation(id, name.Length > 0 ? name : PrivateFallbackName(id, peerNumber),
+                    "private", last, count));
+            }
         }
         return conversations.OrderByDescending(c => c.LastTime).ToList();
     }
 
-    private List<(string Id, long Count, long Last)> Summarize(string table, string _)
+    private static string ReadPeerNumber(SqliteDataReader reader, int index)
     {
-        var result = new List<(string, long, long)>();
+        // MIN and MAX must agree after invalid numbers and placeholders are excluded.
+        var first = TextOf(reader, index);
+        return first == TextOf(reader, index + 1) ? first : "";
+    }
+
+    private List<(string Id, long Count, long Last, string PeerNumber)> Summarize(string table, bool withPeerNumber)
+    {
+        var result = new List<(string, long, long, string)>();
         try
         {
             using var command = _msg.CreateCommand();
+            var peerNumbers = withPeerNumber ? $", min({PeerNumber}), max({PeerNumber})" : "";
             command.CommandText =
-                $"select \"40021\", count(*), max(\"40050\") from \"{table}\" group by \"40021\"";
+                $"select \"40021\", count(*), max(\"40050\"){peerNumbers} from \"{table}\" group by \"40021\"";
             using var reader = command.ExecuteReader();
             while (reader.Read())
             {
@@ -302,7 +381,7 @@ public sealed class QqMessageReader : IDisposable
                 if (id.Length == 0 || id == "0") continue;
                 var count = reader.IsDBNull(1) ? 0L : Convert.ToInt64(reader.GetValue(1), CultureInfo.InvariantCulture);
                 var last = reader.IsDBNull(2) ? 0L : Convert.ToInt64(reader.GetValue(2), CultureInfo.InvariantCulture);
-                result.Add((id, count, last));
+                result.Add((id, count, last, withPeerNumber ? ReadPeerNumber(reader, 3) : ""));
             }
         }
         catch (SqliteException) { }
