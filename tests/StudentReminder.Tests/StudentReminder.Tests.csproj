@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <TargetFramework>net10.0-windows</TargetFramework>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.11.0" />
+    <PackageReference Include="xunit" Version="2.9.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="4.0.1">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <ProjectReference Include="../../src/StudentReminder.Core/StudentReminder.Core.csproj" />
+    <ProjectReference Include="../../src/StudentReminder.Data/StudentReminder.Data.csproj" />
+    <ProjectReference Include="../../src/StudentReminder.Ingestion/StudentReminder.Ingestion.csproj" />
+    <ProjectReference Include="../../src/StudentReminder.WxLocal/StudentReminder.WxLocal.csproj" />
+    <ProjectReference Include="../../src/StudentReminder.WxLocal.Adapter/StudentReminder.WxLocal.Adapter.csproj" />
+    <ProjectReference Include="../../src/StudentReminder.QqLocal/StudentReminder.QqLocal.csproj" />
+    <ProjectReference Include="../../src/StudentReminder.QqLocal.Adapter/StudentReminder.QqLocal.Adapter.csproj" />
+    <ProjectReference Include="../../src/StudentReminder.AI/StudentReminder.AI.csproj" />
+    <ProjectReference Include="../../src/StudentReminder.Notifications/StudentReminder.Notifications.csproj" />
+    <ProjectReference Include="../../tools/StudentReminder.NapCatReceiver/StudentReminder.NapCatReceiver.csproj" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="../../tools/StudentReminder.WxLocalProbe/StudentReminder.WxLocalProbe.csproj" ReferenceOutputAssembly="false" />
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <Content Include="../Fixtures/*.json" Link="Fixtures/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <Using Include="Xunit" />
+  </ItemGroup>
+</Project>

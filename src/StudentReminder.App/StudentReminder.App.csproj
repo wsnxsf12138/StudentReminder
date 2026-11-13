@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
+  </PropertyGroup>
+  <ItemGroup>
+    <Using Remove="System.Windows.Forms" />
+    <Using Remove="System.Drawing" />
+    <ProjectReference Include="../StudentReminder.Core/StudentReminder.Core.csproj" />
+    <ProjectReference Include="../StudentReminder.Data/StudentReminder.Data.csproj" />
+    <ProjectReference Include="../StudentReminder.Ingestion/StudentReminder.Ingestion.csproj" />
+    <ProjectReference Include="../StudentReminder.WxLocal.Adapter/StudentReminder.WxLocal.Adapter.csproj" />
+    <ProjectReference Include="../StudentReminder.QqLocal.Adapter/StudentReminder.QqLocal.Adapter.csproj" />
+    <ProjectReference Include="../StudentReminder.AI/StudentReminder.AI.csproj" />
+    <ProjectReference Include="../StudentReminder.Notifications/StudentReminder.Notifications.csproj" />
+    <Content Include="../../tests/Fixtures/*.json" Link="Samples/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

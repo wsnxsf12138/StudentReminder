@@ -1,0 +1,86 @@
+﻿AI 学生事务助理 — 第三方声明
+适用版本 0.6.2-alpha，Windows x64 自包含便携包。
+
+分发说明
+本项目按 GPL-3.0 发布，见 LICENSE。对应源码与构建步骤见 source/SOURCE-README.txt。
+下表列出应用及随包第三方组件。许可原文见 notices/MIT.txt、notices/Apache-2.0.txt、
+notices/GPL-3.0.txt、notices/BSD-3-Clause.txt 和 notices/Qwen3.5-2B-LICENSE.txt。
+上游著作权与第三方声明原文见 notices/Upstream-NOTICES.txt。
+
+一、随包分发的第三方组件
+
+名称 | 版本 | 许可证 | 用途
+LLamaSharp | 0.30.0 | MIT | 本地小模型推理托管层
+LLamaSharp.Backend.Cpu | 0.30.0 | MIT，含 MIT 许可的 llama.cpp / ggml | CPU 推理后端，含 llama.dll、ggml*.dll、mtmd.dll
+Microsoft.Data.Sqlite / Microsoft.Data.Sqlite.Core | 10.0.14 | MIT | SQLite 访问
+SQLitePCLRaw.bundle_e_sqlite3 / SQLitePCLRaw.core / SQLitePCLRaw.lib.e_sqlite3 / SQLitePCLRaw.provider.e_sqlite3 | 2.1.13 | Apache-2.0 | SQLite 原生绑定
+SQLite（e_sqlite3.dll 内含） | 3.53.3 | 公共领域（Public Domain） | 嵌入式数据库引擎
+Microsoft.Extensions.AI.Abstractions | 10.11.0 | MIT | AI 抽象层
+Microsoft.Extensions.DependencyInjection.Abstractions / Microsoft.Extensions.Logging.Abstractions | 10.0.13 | MIT | 依赖注入与日志抽象
+Microsoft.Bcl.AsyncInterfaces / Microsoft.Bcl.Memory | 10.0.13 | MIT | 兼容性库
+System.Text.Encoding.CodePages | 11.0.0 | MIT | 中文编码
+System.Numerics.Tensors | 10.0.13 | MIT | 张量计算
+System.Linq.Async / System.Interactive.Async | 7.0.1 | MIT | 异步枚举
+CommunityToolkit.HighPerformance | 8.4.2 | MIT | 高性能工具
+ZstdSharp.Port | 0.8.5 | MIT；移植自 BSD-3-Clause 许可的 Zstandard 1.5.6 | 微信数据库解压
+Microsoft.NETCore.App.Runtime.win-x64 / Microsoft.WindowsDesktop.App.Runtime.win-x64 | 10.0.14 | MIT，内含组件许可详见上游声明 | 自包含 .NET、WPF 和 Windows Forms 运行时
+
+著作权声明
+Microsoft 系列 NuGet 包、System.Text.Encoding.CodePages、System.Numerics.Tensors：
+© Microsoft Corporation. All rights reserved.
+.NET 运行时、CommunityToolkit.HighPerformance、System.Linq.Async、System.Interactive.Async：
+Copyright (c) .NET Foundation and Contributors.
+SQLitePCLRaw 系列：Copyright 2014-2024 SourceGear, LLC
+LLamaSharp 包：MIT, SciSharp STACK 2026
+LLamaSharp.Backend.Cpu 包：Copyright 2023 The llama.cpp Authors. All rights reserved.
+ZstdSharp.Port 包：Copyright Oleg Stepanischev 2025
+
+二、随包分发的模型权重
+
+可选模型为 Qwen3.5-2B Q4_K_M，文件名 Qwen_Qwen3.5-2B-Q4_K_M.gguf。
+量化版本由 bartowski 转换为 GGUF 并量化为 Q4_K_M，权重许可为 Apache-2.0。
+量化文件来源 https://huggingface.co/bartowski/Qwen_Qwen3.5-2B-GGUF/commit/0719ef0c2bc06b5da2cccfec9dc26b8328f8afbd
+许可链接 https://huggingface.co/Qwen/Qwen3.5-2B/blob/main/LICENSE
+基座模型为 Qwen3.5-2B-Base，见 https://huggingface.co/Qwen/Qwen3.5-2B-Base。
+本机已读取 GGUF 头部元数据，general.license=apache-2.0，general.license.link 为上述许可链接。
+若替换为其他模型文件，须重新核对该模型卡许可。
+
+三、仅测试使用（不随包）
+
+Microsoft.NET.Test.Sdk 18.11.0（MIT），其传递依赖 Microsoft.CodeCoverage、
+Microsoft.TestPlatform.ObjectModel、Microsoft.TestPlatform.TestHost 同为 18.11.0（MIT）。
+xunit 2.9.3、xunit.assert、xunit.core、xunit.extensibility.core、
+xunit.extensibility.execution 同为 2.9.3（Apache-2.0）。
+xunit.analyzers 1.18.0、xunit.runner.visualstudio 4.0.1（Apache-2.0）。
+xunit.abstractions 2.0.3（上游旧许可链接指向 Apache-2.0，缓存 <license> 字段待核实）。
+
+四、非随包组件（用户自行安装或为外部服务）
+
+- Moect 1.2.8（GPL-3.0）是由用户自行安装的独立第三方程序，可导出获授权的微信会话 JSON。
+  WxLocal 参照 Moect 源码在本项目中重写，Moect 二进制不随包分发。
+  Moect 上游 https://github.com/mofan6/Moect/tree/v1.2.8
+  Moect 上游亦署名 WeChatMsg（SiYuan 及贡献者）与 WeChatMsg-4x。见其声明
+  https://github.com/mofan6/Moect/blob/v1.2.8/THIRD_PARTY_NOTICES.md
+  代码许可证、平台服务条款、第三方程序许可三者不可相互替代。
+- DeepSeek / 豆包（火山方舟）API 由用户自行注册并填入 API Key，受各服务商条款约束。
+- 微信 / QQ 客户端须由用户自行安装并登录。读取仅限本人授权的会话，受平台规则约束。
+  平台规则与本项目许可证分别适用。
+- LLamaSharp 的 Windows CPU 后端调用 Microsoft Visual C++ v14 x64 运行库（含 VCOMP140.dll）。
+  如系统缺少该运行库，用户可从 Microsoft 自行安装。该独立安装程序不随包分发。
+  https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist
+
+五、核实记录
+
+以上许可证类型应逐条核对本机 NuGet 缓存 ~/.nuget/packages/<包id>/<版本>/<包id>.nuspec 的
+<license> 字段；如与上表不一致，以 nuspec 为准并在本节记录差异。
+2026-11-13 按应用与测试的 packages.lock.json 逐条核对，随包 NuGet 许可与上表一致。
+0.6.2-alpha 更新了项目引用版本，随包第三方依赖和可选模型沿用 0.6.1-alpha 的版本。
+xunit.abstractions 2.0.3 的 nuspec 仅含旧式 <licenseUrl>，链接全文为 Apache-2.0。
+SQLite 版本由缓存中 win-x64 的 e_sqlite3.dll 的 sqlite3_libversion 核实，公共领域声明见
+https://www.sqlite.org/copyright.html。SQLitePCLRaw 的 Apache-2.0 适用于绑定及打包组件。
+LLamaSharp 包的 releaseNotes 列出 c0c7e147，包内 README 对 0.30.0 列出 815a2a59。
+win-x64 的 ggml-base.dll 内嵌 815a2a591，采用该提交的上游许可原文。
+MIT 原文取自本机 Microsoft.NETCore.App.Runtime.win-x64 10.0.14 的 LICENSE.TXT。
+Apache-2.0 和 GPL-3.0 原文取自 Apache 软件基金会和 GNU 项目。
+Qwen 许可原文取自 Qwen 官方 ModelScope 仓库，含 Alibaba Cloud 著作权声明。
+https://modelscope.cn/models/Qwen/Qwen3.5-2B/resolve/master/LICENSE

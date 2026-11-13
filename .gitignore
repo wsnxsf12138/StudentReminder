@@ -1,0 +1,77 @@
+# .NET build and test output
+**/[Bb]in/
+**/[Oo]bj/
+artifacts/
+TestResults/
+coverage/
+*.coverage
+*.coveragexml
+*.trx
+*.nupkg
+*.snupkg
+packages/
+
+# IDE and user-specific settings
+.vs/
+.idea/
+.vscode/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Local configuration and secrets
+.env
+.env.*
+!.env.example
+!.env.*.example
+appsettings.Local.json
+appsettings.*.Local.json
+appsettings.Development.json
+appsettings.Production.json
+appsettings.*.Development.json
+appsettings.*.Production.json
+*.local.json
+*.local.yaml
+*.local.yml
+*.local.config
+secrets.json
+**/secrets/
+**/credentials/
+**/keys.json
+**/wal-cursor.json
+*.key
+*.pem
+*.pfx
+*.p12
+
+# Runtime data, chat databases and exports
+/data/
+/local-data/
+/runtime/
+/backups/
+/exports/
+/chat-exports/
+*.db
+*.db-*
+*.sqlite
+*.sqlite-*
+*.sqlite3
+*.sqlite3-*
+
+# Logs and temporary files
+**/logs/
+*.log
+*.tmp
+*.bak
+*.dmp
+*.stackdump
+
+# OS metadata
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# Installed third-party programs and caches are reconstructed from the tracked service manifest.
+/tools/services/installed/
+/tools/services/packages/

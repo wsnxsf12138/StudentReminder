@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "updated_on": "2026-11-12",
+  "services": [
+    {
+      "id": "moect",
+      "version": "1.2.8",
+      "source_url": "https://github.com/mofan6/Moect",
+      "source_commit": "88dffc7d0d06632f8061b0a19aa82b38337d7ee5",
+      "package_url": "https://github.com/mofan6/Moect/releases/download/v1.2.8/Moect-1.2.8-Windows-x64.zip",
+      "package_path": "tools/services/packages/Moect-1.2.8-Windows-x64.zip",
+      "package_sha256": "3761d4097bfedff04bc7dbe9493c5d7fbbaf8385b7896006dc7a15223ddc985f",
+      "install_directory": "tools/services/installed/moect-1.2.8",
+      "executable": "tools/services/installed/moect-1.2.8/Moect/Moect.exe",
+      "executable_sha256": "e609b33f4cfc06352d855a272c62bcd05b21bdc1cd292a19a39406ad3f9a7e18",
+      "license": "GPL-3.0",
+      "installation_status": "portable_client_launched_demo_export_verified",
+      "real_account_validation": "selected_group_text_import_verified"
+    }
+  ]
+}

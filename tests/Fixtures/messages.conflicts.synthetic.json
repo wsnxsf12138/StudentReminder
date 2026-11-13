@@ -1,0 +1,44 @@
+[
+  {
+    "source": "manual",
+    "adapter": "synthetic",
+    "account_id": "synthetic-conflict-account",
+    "conversation_id": "synthetic-conflict-group",
+    "conversation_name": "合成场景：正文冲突",
+    "conversation_type": "group",
+    "message_id": "synthetic-conflict-001",
+    "sender_id": "synthetic-teacher",
+    "sender_name": "合成老师",
+    "sent_at": "2026-11-10T09:00:00+08:00",
+    "received_at": "2026-11-10T09:00:02+08:00",
+    "content_type": "text",
+    "text": "周四14:00在A101开班会。",
+    "is_recalled": false,
+    "origin_event": "message.new",
+    "metadata": {
+      "synthetic": true,
+      "scenario": "conflicting_evidence"
+    }
+  },
+  {
+    "source": "manual",
+    "adapter": "synthetic",
+    "account_id": "synthetic-conflict-account",
+    "conversation_id": "synthetic-conflict-group",
+    "conversation_name": "合成场景：正文冲突",
+    "conversation_type": "group",
+    "message_id": "synthetic-conflict-001",
+    "sender_id": "synthetic-teacher",
+    "sender_name": "合成老师",
+    "sent_at": "2026-11-10T09:00:00+08:00",
+    "received_at": "2026-11-10T09:00:02+08:00",
+    "content_type": "text",
+    "text": "更正：同一通知改为周五16:00在B202开班会。",
+    "is_recalled": false,
+    "origin_event": "message.new",
+    "metadata": {
+      "synthetic": true,
+      "scenario": "conflicting_evidence"
+    }
+  }
+]

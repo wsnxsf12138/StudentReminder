@@ -1,0 +1,27 @@
+<Application x:Class="StudentReminder.App.App"
+             ShutdownMode="OnMainWindowClose"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <Application.Resources>
+    <SolidColorBrush x:Key="Accent" Color="#0F766E" />
+    <Style TargetType="TextBlock">
+      <Setter Property="Foreground" Value="#25364A" />
+    </Style>
+    <Style TargetType="Button">
+      <Setter Property="Padding" Value="16,10" />
+      <Setter Property="Margin" Value="0,0,8,0" />
+      <Setter Property="Background" Value="#E6F2EF" />
+      <Setter Property="Foreground" Value="#115E59" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="Cursor" Value="Hand" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+    <Style TargetType="TextBox">
+      <Setter Property="Padding" Value="10,8" />
+      <Setter Property="BorderBrush" Value="#CBD5E1" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="Background" Value="White" />
+      <Setter Property="Foreground" Value="#25364A" />
+    </Style>
+  </Application.Resources>
+</Application>
