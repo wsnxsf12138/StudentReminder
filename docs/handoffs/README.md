@@ -19,5 +19,9 @@
 | 0.6.0-alpha | [v0.6.0-alpha](v0.6.0-alpha.md) | 内置本地推理、云端精提取、多消息证据及日期精度，schema v8 |
 | 0.6.1-alpha | [v0.6.1-alpha](v0.6.1-alpha.md) | 同会话定量定时批提取、问卷与重要通知、讲座预约，schema v8 |
 | 0.6.2-alpha | [v0.6.2-alpha](v0.6.2-alpha.md) | P5-01、P5-04 回归验证、直读缓存清理与分发依赖审查，schema v8 |
+| 0.6.3-alpha | [v0.6.3-alpha](v0.6.3-alpha.md) | QQ 群会话名称显示修复 |
+| 0.6.4-alpha | [v0.6.4-alpha](v0.6.4-alpha.md) | QQ 私聊名称修复与无效会话过滤 |
+| 0.6.5-alpha | [v0.6.5-alpha](v0.6.5-alpha.md) | QQ 消息发送者名称及本人、系统消息识别 |
+| 0.6.6-alpha | [v0.6.6-alpha](v0.6.6-alpha.md) | 清理 QqLocal 残留「0」伪群聊会话 |
 
 后续版本复制 [模板](TEMPLATE.md)，按实际结果填写，完成后更新此索引、版本号和 CHANGELOG。未执行、受阻或未通过的项目应明确标注，不能写成已完成。

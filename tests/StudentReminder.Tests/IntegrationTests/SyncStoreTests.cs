@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Microsoft.Data.Sqlite;
 using StudentReminder.Core;
 using StudentReminder.Data;
 
@@ -155,6 +156,56 @@ public sealed class SyncStoreTests : IDisposable
         await Assert.ThrowsAsync<ArgumentException>(() => repository.SaveSourceAsync(source));
         await repository.SaveSourceAsync(Definition(alias: source.AccountAlias));
         Assert.False(Assert.Single(await repository.ReadSourcesAsync()).Enabled);
+    }
+
+    [Fact]
+    public async Task QqLocalDiscoveryBackfillsOnlyLegacyNumericConversationNames()
+    {
+        var repository = Repository;
+        await repository.InitializeAsync();
+        var source = Definition("qqlocal") with { Port = 0 };
+        await repository.SaveSourceAsync(source);
+        await repository.MergeConversationsAsync(source.Id, [new("synthetic-group", "synthetic-group", "group")]);
+        await repository.SelectConversationsAsync(source.Id, ["synthetic-group"]);
+        await repository.SetSourceEnabledAsync(source.Id, true);
+        source = Assert.Single(await repository.ReadSourcesAsync());
+        var numericName = Message(source) with { ConversationName = "synthetic-group" };
+        var customName = Message(source, "m2") with { ConversationName = "用户保留的名称" };
+        await repository.CommitPageAsync(source, "synthetic-group", new([numericName, customName], null, false));
+
+        await repository.MergeConversationsAsync(source.Id, [new("synthetic-group", "合成课程群", "group")]);
+
+        var messages = await repository.ReadRecentAsync();
+        Assert.Equal("合成课程群", Assert.Single(messages, row => row.Message.MessageId == "m1").Message.ConversationName);
+        Assert.Equal("用户保留的名称", Assert.Single(messages, row => row.Message.MessageId == "m2").Message.ConversationName);
+        Assert.Equal("合成课程群", Assert.Single(await repository.ReadConversationsAsync(source.Id)).Name);
+    }
+
+    [Fact]
+    public async Task ReadAndMergeDropBogusZeroPlaceholderConversation()
+    {
+        var repository = Repository;
+        await repository.InitializeAsync();
+        var source = Definition("qqlocal") with { Port = 0 };
+        await repository.SaveSourceAsync(source);
+
+        // Simulate a stale bogus "0" conversation persisted by an older build.
+        using (var connection = new SqliteConnection($"Data Source={Path.Combine(directory, "messages.db")};Pooling=False"))
+        {
+            connection.Open();
+            using var insert = connection.CreateCommand();
+            insert.CommandText = "INSERT INTO conversations(id,source_id,external_id,name,type,selected) VALUES($id,$source,'0','0','group',0)";
+            insert.Parameters.AddWithValue("$id", SourceKeys.Hash(source.Id, "0"));
+            insert.Parameters.AddWithValue("$source", source.Id);
+            insert.ExecuteNonQuery();
+        }
+
+        // Read path hides the placeholder immediately.
+        Assert.DoesNotContain(await repository.ReadConversationsAsync(source.Id), c => c.Id == "0");
+
+        // Re-reading sessions removes the stale placeholder for good.
+        await repository.MergeConversationsAsync(source.Id, [new("synthetic-group", "合成群", "group")]);
+        Assert.Equal("合成群", Assert.Single(await repository.ReadConversationsAsync(source.Id)).Name);
     }
 
     internal static async Task<SourceDefinition> ConfigureAsync(SqliteMessageRepository repository)

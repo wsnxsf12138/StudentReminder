@@ -7,7 +7,7 @@ namespace StudentReminder.QqLocal.Adapter;
 public static class QqMessageMapper
 {
     public static NormalizedMessage Map(QqMessage message, string accountId, string conversationId,
-        bool group, DateTimeOffset receivedAt)
+        string conversationName, bool group, DateTimeOffset receivedAt)
     {
         return MessageValidation.Normalize(new NormalizedMessage
         {
@@ -15,7 +15,7 @@ public static class QqMessageMapper
             Adapter = "qqlocal",
             AccountId = accountId,
             ConversationId = conversationId,
-            ConversationName = conversationId,
+            ConversationName = string.IsNullOrWhiteSpace(conversationName) ? conversationId : conversationName,
             ConversationType = group ? "group" : "private",
             MessageId = message.MsgId == 0 ? null : message.MsgId.ToString(CultureInfo.InvariantCulture),
             SenderId = !string.IsNullOrEmpty(message.SenderQq) ? message.SenderQq
