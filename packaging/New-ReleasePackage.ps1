@@ -2,7 +2,7 @@
 [CmdletBinding()]
 param(
     [ValidatePattern('^[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z]+(?:[.-][0-9A-Za-z]+)*)?$')]
-    [string]$Version = '0.6.2-alpha',
+    [string]$Version = '0.6.8-alpha',
     [switch]$IncludeModels,
     [string]$OutputRoot = 'artifacts/release'
 )
@@ -151,11 +151,12 @@ $null = [IO.Directory]::CreateDirectory($sourceDir)
 $sourceZip = Join-Path $sourceDir 'StudentReminder-source.zip'
 $temporaryZip = Join-Path $dist $zipName
 
-# 取已提交源码，并加入本次许可与打包文件。发布也使用这份源码 ZIP。
+# 从已提交的同一快照归档源码和许可，并用该归档构建二进制。
 $commit = git -C $repo rev-parse --verify HEAD
 if ($LASTEXITCODE -ne 0) { throw '无法确定当前 Git 提交。' }
 $sourcePaths = @('src', 'tests', 'scripts', 'tools', 'docs', 'Directory.Build.props',
-    'global.json', 'StudentReminder.sln', 'README.md', 'CHANGELOG.md', '.gitattributes', '.gitignore')
+    'global.json', 'StudentReminder.sln', 'README.md', 'CHANGELOG.md', 'AGENTS.md', '.gitattributes', '.gitignore',
+    'LICENSE', 'THIRD-PARTY-NOTICES.txt', 'notices', 'packaging')
 $tree = @(git -C $repo ls-tree -r $commit -- $sourcePaths)
 if ($LASTEXITCODE -ne 0 -or @($tree -match '^(120000|160000) ').Count -gt 0) {
     throw '无法读取源码树，或源码树包含需要单独处理的符号链接或子模块。'
@@ -175,49 +176,16 @@ foreach ($relative in $sourceFiles) {
         throw '源码中存在未经核对的 JSON 文件，已停止出包。'
     }
     if ($relative -notmatch '\.(?:cs|csproj|json|md|ps1|sql|xaml|props|sln)$' -and
-        $relative -notin @('.gitattributes', '.gitignore', 'tools/services/licenses/Moect-GPL-3.0.txt')) {
+        $relative -notin @('.gitattributes', '.gitignore', 'tools/services/licenses/Moect-GPL-3.0.txt', 'LICENSE', 'THIRD-PARTY-NOTICES.txt',
+            'packaging/使用说明.txt', 'packaging/SOURCE-README.txt') -and $relative -notmatch '^notices/[A-Za-z0-9.-]+\.txt$') {
         throw '源码中存在未经核对的文件类型，已停止出包。'
     }
 }
 git -C $repo archive --format=zip "--output=$sourceZip" $commit -- $sourcePaths
 if ($LASTEXITCODE -ne 0) { throw '生成对应源码 ZIP 失败。' }
 
-$noticeFiles = @('MIT.txt', 'Apache-2.0.txt', 'GPL-3.0.txt', 'Qwen3.5-2B-LICENSE.txt',
-    'BSD-3-Clause.txt', 'Upstream-NOTICES.txt')
-$releaseFiles = @('LICENSE', 'THIRD-PARTY-NOTICES.txt', 'packaging/使用说明.txt',
-    'packaging/SOURCE-README.txt', 'packaging/New-ReleasePackage.ps1')
-$releaseFiles += @($noticeFiles | ForEach-Object { "notices/$_" })
-# 该文件含本次试用版启动隔离修正，与当前打包资料一起进入对应源码。
-$releaseFiles += 'src/StudentReminder.App/App.xaml.cs'
-$archive = [IO.Compression.ZipFile]::Open($sourceZip, [IO.Compression.ZipArchiveMode]::Update, $zipEncoding)
+$archive = [IO.Compression.ZipFile]::Open($sourceZip, [IO.Compression.ZipArchiveMode]::Read, $zipEncoding)
 try {
-    foreach ($relative in $releaseFiles) {
-        $file = Get-Item -LiteralPath (Join-Path $repo $relative) -Force
-        Assert-PlainItem $file
-        $existing = $archive.GetEntry($relative)
-        if ($null -ne $existing) { $existing.Delete() }
-        $null = [IO.Compression.ZipFileExtensions]::CreateEntryFromFile($archive, $file.FullName, $relative)
-    }
-
-    # 旧 QQ 映射测试沿用了探针标识。只在发布快照替换这两处测试数据的全部引用。
-    $fixturePath = 'tests/StudentReminder.Tests/IntegrationTests/QqLocalSourceAdapterTests.cs'
-    $fixtureEntry = $archive.GetEntry($fixturePath)
-    $reader = [IO.StreamReader]::new($fixtureEntry.Open(), $utf8)
-    try { $fixture = $reader.ReadToEnd() } finally { $reader.Dispose() }
-    $group = [regex]::Match($fixture, 'new QqMessage\("(?<id>\d+)", 7, 9001,')
-    $account = [regex]::Match($fixture, 'new QqMessage\("(?<id>\d+)", 3, 55,')
-    if (!$group.Success -or !$account.Success -or $group.Groups['id'].Value -eq $account.Groups['id'].Value) {
-        throw 'QQ 映射测试样例已变化，请核对发布快照的脱敏步骤。'
-    }
-    $fixture = $fixture.Replace('"' + $group.Groups['id'].Value + '"', '"1000000002"')
-    $fixture = $fixture.Replace('"' + $account.Groups['id'].Value + '"', '"1000000001"')
-    $fixtureTime = $fixtureEntry.LastWriteTime
-    $fixtureEntry.Delete()
-    $fixtureEntry = $archive.CreateEntry($fixturePath)
-    $fixtureEntry.LastWriteTime = $fixtureTime
-    $writer = [IO.StreamWriter]::new($fixtureEntry.Open(), $utf8)
-    try { $writer.Write($fixture) } finally { $writer.Dispose() }
-
     foreach ($entry in $archive.Entries) {
         if (!$entry.Name) { continue }
         $stream = $entry.Open()

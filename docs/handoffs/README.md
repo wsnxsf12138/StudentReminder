@@ -24,6 +24,7 @@
 | 0.6.5-alpha | [v0.6.5-alpha](v0.6.5-alpha.md) | QQ 消息发送者名称及本人、系统消息识别 |
 | 0.6.6-alpha | [v0.6.6-alpha](v0.6.6-alpha.md) | 清理 QqLocal 残留「0」伪群聊会话 |
 | 0.6.7-alpha | [v0.6.7-alpha](v0.6.7-alpha.md) | QqLocal 群系统消息识别与发送者昵称快照兜底 |
+| 0.6.8-alpha | [v0.6.8-alpha](v0.6.8-alpha.md) | QqLocal 私聊名称与 QQ 公众号识别（ISSUE-02） |
 
 ## 遗留问题
 

@@ -377,11 +377,88 @@ public sealed class QqLocalTests : IDisposable
         Assert.Equal("备注", reader.GetConversationName("u_friend", group: false));
         // Nickname is used when no remark is set.
         Assert.Equal("只有昵称", reader.GetConversationName("u_nickonly", group: false));
-        // Unknown uid falls back to the id itself.
-        Assert.Equal("u_unknown", reader.GetConversationName("u_unknown", group: false));
+        Assert.Equal("未知 QQ 会话（nknown）", reader.GetConversationName("u_unknown", group: false));
 
         var c2c = Assert.Single(reader.ListConversations(), c => c.Id == "u_friend");
         Assert.Equal("备注", c2c.Name);
+    }
+
+    [Fact]
+    public void Reader_UsesPeerQqNumberForPrivateConversationWithEmptyProfileName()
+    {
+        var dir = WorkPath("private-peer-number");
+        Directory.CreateDirectory(dir);
+        using (var connection = new SqliteConnection($"Data Source={Path.Combine(dir, "nt_msg.db")};Pooling=False"))
+        {
+            connection.Open();
+            Execute(connection, """
+                create table c2c_msg_table ("40021" text, "40030", "40050" integer);
+                insert into c2c_msg_table values ('u_synthetic_peer', 1000000001, 1762000000);
+                insert into c2c_msg_table values ('u_synthetic_peer', 0, 1762000001);
+                insert into c2c_msg_table values ('u_synthetic_peer', 'invalid', 1762000002);
+                insert into c2c_msg_table values ('u_synthetic_conflict', 1000000002, 1762000000);
+                insert into c2c_msg_table values ('u_synthetic_conflict', 1000000003, 1762000001);
+                """);
+        }
+        using (var connection = new SqliteConnection($"Data Source={Path.Combine(dir, "profile_info.db")};Pooling=False"))
+        {
+            connection.Open();
+            Execute(connection, """
+                create table profile_info_v6 ("1000" text primary key, "20002" text, "20009" text);
+                insert into profile_info_v6 values ('u_synthetic_peer', '', null);
+                """);
+        }
+
+        using var reader = new QqMessageReader(dir);
+        var conversations = reader.ListConversations();
+        var conversation = Assert.Single(conversations, c => c.Id == "u_synthetic_peer");
+        Assert.Equal("QQ 1000000001", conversation.Name);
+        Assert.Equal(conversation.Name, reader.GetConversationName(conversation.Id, group: false));
+        Assert.Equal(3, conversation.Count);
+        Assert.Equal(1762000002, conversation.LastTime);
+        var conflict = Assert.Single(conversations, c => c.Id == "u_synthetic_conflict");
+        Assert.Equal("未知 QQ 会话（nflict）", conflict.Name);
+        Assert.Equal(conflict.Name, reader.GetConversationName(conflict.Id, group: false));
+    }
+
+    [Fact]
+    public void Reader_LabelsPublicAccountsUsingProfileThenRecentTitleThenPeerNumber()
+    {
+        var dir = WorkPath("private-public-accounts");
+        Directory.CreateDirectory(dir);
+        using (var connection = new SqliteConnection($"Data Source={Path.Combine(dir, "nt_msg.db")};Pooling=False"))
+        {
+            connection.Open();
+            Execute(connection, """
+                create table c2c_msg_table ("40021" text, "40030" integer, "40050" integer);
+                insert into c2c_msg_table values
+                    ('u_profile', 1000000001, 1762000000), ('u_recent', 1000000002, 1762000000),
+                    ('u_number', 1000000003, 1762000000), ('u_friend', 1000000004, 1762000000);
+                create table recent_contact_v3_table ("40021" text, "40094" text);
+                insert into recent_contact_v3_table values
+                    ('u_profile', '较早的标题'), ('u_recent', '合成服务通知'),
+                    ('u_number', '  '), ('u_friend', '较早的昵称');
+                """);
+        }
+        using (var connection = new SqliteConnection($"Data Source={Path.Combine(dir, "profile_info.db")};Pooling=False"))
+        {
+            connection.Open();
+            Execute(connection, """
+                create table profile_info_public_account ("1000" text, "20002" text);
+                insert into profile_info_public_account values
+                    ('u_profile', '合成公众号'), ('u_recent', null), ('u_number', null);
+                create table profile_info_v6 ("1000" text, "20002" text, "20009" text);
+                insert into profile_info_v6 values ('u_friend', '合成昵称', '合成备注');
+                """);
+        }
+
+        using var reader = new QqMessageReader(dir);
+        var names = reader.ListConversations().ToDictionary(c => c.Id, c => c.Name);
+        Assert.Equal("QQ 公众号 · 合成公众号", names["u_profile"]);
+        Assert.Equal("QQ 公众号 · 合成服务通知", names["u_recent"]);
+        Assert.Equal("QQ 公众号 1000000003", names["u_number"]);
+        Assert.Equal("合成备注", names["u_friend"]);
+        Assert.All(names, entry => Assert.Equal(entry.Value, reader.GetConversationName(entry.Key, group: false)));
     }
 
     [Fact]

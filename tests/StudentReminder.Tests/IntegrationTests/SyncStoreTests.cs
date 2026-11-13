@@ -158,27 +158,32 @@ public sealed class SyncStoreTests : IDisposable
         Assert.False(Assert.Single(await repository.ReadSourcesAsync()).Enabled);
     }
 
-    [Fact]
-    public async Task QqLocalDiscoveryBackfillsOnlyLegacyNumericConversationNames()
+    [Theory]
+    [InlineData("synthetic-group", "group", "合成课程群")]
+    [InlineData("u_synthetic_peer", "private", "QQ 公众号 1000000001")]
+    public async Task QqLocalDiscoveryBackfillsOnlyLegacyConversationIds(string id, string type, string name)
     {
         var repository = Repository;
         await repository.InitializeAsync();
         var source = Definition("qqlocal") with { Port = 0 };
         await repository.SaveSourceAsync(source);
-        await repository.MergeConversationsAsync(source.Id, [new("synthetic-group", "synthetic-group", "group")]);
-        await repository.SelectConversationsAsync(source.Id, ["synthetic-group"]);
+        await repository.MergeConversationsAsync(source.Id, [new(id, id, type)]);
+        await repository.SelectConversationsAsync(source.Id, [id]);
         await repository.SetSourceEnabledAsync(source.Id, true);
         source = Assert.Single(await repository.ReadSourcesAsync());
-        var numericName = Message(source) with { ConversationName = "synthetic-group" };
-        var customName = Message(source, "m2") with { ConversationName = "用户保留的名称" };
-        await repository.CommitPageAsync(source, "synthetic-group", new([numericName, customName], null, false));
+        var legacyName = Message(source) with { ConversationId = id, ConversationName = id, ConversationType = type };
+        var customName = legacyName with { MessageId = "m2", ConversationName = "用户保留的名称" };
+        await repository.CommitPageAsync(source, id, new([legacyName, customName], "synthetic-cursor", false));
 
-        await repository.MergeConversationsAsync(source.Id, [new("synthetic-group", "合成课程群", "group")]);
+        await repository.MergeConversationsAsync(source.Id, [new(id, name, type)]);
 
         var messages = await repository.ReadRecentAsync();
-        Assert.Equal("合成课程群", Assert.Single(messages, row => row.Message.MessageId == "m1").Message.ConversationName);
+        Assert.Equal(name, Assert.Single(messages, row => row.Message.MessageId == "m1").Message.ConversationName);
         Assert.Equal("用户保留的名称", Assert.Single(messages, row => row.Message.MessageId == "m2").Message.ConversationName);
-        Assert.Equal("合成课程群", Assert.Single(await repository.ReadConversationsAsync(source.Id)).Name);
+        var conversation = Assert.Single(await repository.ReadConversationsAsync(source.Id));
+        Assert.Equal(name, conversation.Name);
+        Assert.True(conversation.Selected);
+        Assert.Equal("synthetic-cursor", await repository.ReadCursorAsync(source.Id, id));
     }
 
     [Fact]
