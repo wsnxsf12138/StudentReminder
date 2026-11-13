@@ -102,6 +102,14 @@ public sealed partial class SqliteMessageRepository
                 """, ("$id", SourceKeys.Hash(sourceId, conversation.Id)), ("$source", sourceId),
                 ("$external", conversation.Id), ("$name", conversation.Name), ("$type", conversation.Type));
             await command.ExecuteNonQueryAsync(cancellationToken);
+            using var backfill = Command(connection, transaction, """
+                UPDATE messages SET payload_json=json_set(payload_json,'$.conversation_name',$name)
+                WHERE conversation_id=$id AND json_extract(payload_json,'$.conversation_name')=$external
+                    AND EXISTS (SELECT 1 FROM source_configs c
+                        WHERE c.source_id=messages.source_id AND c.adapter='qqlocal');
+                """, ("$id", SourceKeys.Hash(sourceId, conversation.Id)),
+                ("$name", conversation.Name), ("$external", conversation.Id));
+            await backfill.ExecuteNonQueryAsync(cancellationToken);
         }
         await transaction.CommitAsync(cancellationToken);
     }

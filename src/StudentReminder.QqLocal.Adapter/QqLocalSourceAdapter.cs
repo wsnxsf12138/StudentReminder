@@ -84,6 +84,7 @@ public sealed class QqLocalSourceAdapter : IDataSourceAdapter
                 ? reader.ReadMessages(conversationId, group, now.AddDays(-source.LookbackDays).ToUnixTimeSeconds())
                 : reader.ReadMessagesAfter(conversationId, group, position.RowId);
 
+            var conversationName = reader.GetConversationName(conversationId, group);
             var messages = new List<NormalizedMessage>();
             var last = position;
             var processed = 0;
@@ -92,7 +93,7 @@ public sealed class QqLocalSourceAdapter : IDataSourceAdapter
                 processed++;
                 if (message.Kind != "text" || string.IsNullOrWhiteSpace(message.Text)) continue;
                 last = new QqCursor(message.RowId);
-                messages.Add(QqMessageMapper.Map(message, source.AccountAlias, conversationId, group, now));
+                messages.Add(QqMessageMapper.Map(message, source.AccountAlias, conversationId, conversationName, group, now));
                 if (messages.Count >= limit) break;
             }
 

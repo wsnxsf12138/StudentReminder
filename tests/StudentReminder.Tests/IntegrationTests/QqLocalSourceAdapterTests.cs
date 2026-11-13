@@ -14,12 +14,13 @@ public sealed class QqLocalSourceAdapterTests
         var message = new QqMessage("1000000002", 7, 9001, 1762000000,
             "u_teacher001", "1000000001", "张老师", false, "text", "下周三交实验报告");
 
-        var normalized = QqMessageMapper.Map(message, "qq-local", "1000000002", group: true, DateTimeOffset.UnixEpoch);
+        var normalized = QqMessageMapper.Map(message, "qq-local", "1000000002", "高等数学课程群", group: true, DateTimeOffset.UnixEpoch);
 
         Assert.Equal("qq", normalized.Source);
         Assert.Equal("qqlocal", normalized.Adapter);
         Assert.Equal("qq-local", normalized.AccountId);
         Assert.Equal("1000000002", normalized.ConversationId);
+        Assert.Equal("高等数学课程群", normalized.ConversationName);
         Assert.Equal("group", normalized.ConversationType);
         Assert.Equal("9001", normalized.MessageId);
         Assert.Equal("1000000001", normalized.SenderId);
@@ -35,7 +36,7 @@ public sealed class QqLocalSourceAdapterTests
         var message = new QqMessage("1000000001", 3, 55, 1762000000,
             "u_friend", "", "同学", false, "text", "收到");
 
-        var normalized = QqMessageMapper.Map(message, "qq-local", "1000000001", group: false, DateTimeOffset.UnixEpoch);
+        var normalized = QqMessageMapper.Map(message, "qq-local", "1000000001", "同学", group: false, DateTimeOffset.UnixEpoch);
 
         Assert.Equal("private", normalized.ConversationType);
         Assert.Equal("u_friend", normalized.SenderId);
@@ -47,7 +48,7 @@ public sealed class QqLocalSourceAdapterTests
     {
         var message = new QqMessage("1000000002", 1, 0, 1762000000,
             "u_a", "", "", false, "text", "hi");
-        Assert.Null(QqMessageMapper.Map(message, "a", "1000000002", true, DateTimeOffset.UnixEpoch).MessageId);
+        Assert.Null(QqMessageMapper.Map(message, "a", "1000000002", "1000000002", true, DateTimeOffset.UnixEpoch).MessageId);
     }
 
     [Fact]

@@ -26,6 +26,7 @@ public sealed class QqMessageReader : IDisposable
     private readonly SqliteConnection _msg;
     private readonly Dictionary<string, string> _names = new(StringComparer.Ordinal); // uid -> name
     private readonly Dictionary<string, string> _groupNames = new(StringComparer.Ordinal);
+    private readonly Dictionary<(string Group, string Uid), string> _groupMembers = new(); // (group id, uid) -> display name
 
     public QqMessageReader(string decryptedDir)
     {
@@ -44,7 +45,11 @@ public sealed class QqMessageReader : IDisposable
     private void LoadNames()
     {
         _names.Clear();
+        _groupNames.Clear();
         LoadNameMap("profile_info.db", _names);
+        LoadQqNtBuddyNames();
+        LoadQqNtGroupNames();
+        LoadQqNtGroupMembers();
         LoadNameMap("group_info.db", _groupNames);
     }
 
@@ -62,23 +67,134 @@ public sealed class QqMessageReader : IDisposable
                 var uidCol = FirstOf(columns, "uid", "uin", "group_id", "group_code", "id");
                 var nameCol = FirstOf(columns, "nickname", "nick", "name", "remark", "group_name");
                 if (uidCol is null || nameCol is null) continue;
-                try
-                {
-                    using var command = connection.CreateCommand();
-                    command.CommandText = $"select \"{uidCol}\", \"{nameCol}\" from \"{table}\"";
-                    using var reader = command.ExecuteReader();
-                    while (reader.Read())
-                    {
-                        var id = reader.IsDBNull(0) ? "" : Convert.ToString(reader.GetValue(0), CultureInfo.InvariantCulture) ?? "";
-                        var name = reader.IsDBNull(1) ? "" : Convert.ToString(reader.GetValue(1), CultureInfo.InvariantCulture) ?? "";
-                        if (id.Length > 0 && name.Length > 0) target.TryAdd(id, name);
-                    }
-                }
-                catch (SqliteException) { }
+                ReadNameMap(connection, table, uidCol, nameCol, target);
             }
         }
         catch (SqliteException) { }
         catch (IOException) { }
+    }
+
+    /// <summary>
+    /// QQ NT stores friend uid/nick/remark in profile_info_v6 numeric columns:
+    /// 1000 = uid, 20002 = nickname, 20009 = remark. Prefer the remark (as the QQ
+    /// client does) and fall back to the nickname when no remark is set.
+    /// </summary>
+    private void LoadQqNtBuddyNames()
+    {
+        var path = Path.Combine(_root, "profile_info.db");
+        if (!File.Exists(path)) return;
+        try
+        {
+            using var connection = Open(path);
+            var tables = ListTables(connection).ToHashSet(StringComparer.Ordinal);
+            if (!tables.Contains("profile_info_v6")) return;
+            var columns = TableColumns(connection, "profile_info_v6");
+            if (!columns.Contains("1000")) return;
+
+            var nameCols = new List<string>(2);
+            if (columns.Contains("20009")) nameCols.Add("20009");
+            if (columns.Contains("20002")) nameCols.Add("20002");
+            if (nameCols.Count == 0) return;
+
+            var select = string.Join(", ", nameCols.Select(c => $"\"{c}\""));
+            using var command = connection.CreateCommand();
+            command.CommandText = $"select \"1000\", {select} from \"profile_info_v6\"";
+            using var reader = command.ExecuteReader();
+            while (reader.Read())
+            {
+                var id = reader.IsDBNull(0) ? "" : Convert.ToString(reader.GetValue(0), CultureInfo.InvariantCulture) ?? "";
+                if (id.Length == 0) continue;
+                for (var i = 0; i < nameCols.Count; i++)
+                {
+                    var name = reader.IsDBNull(i + 1) ? "" : Convert.ToString(reader.GetValue(i + 1), CultureInfo.InvariantCulture) ?? "";
+                    if (!string.IsNullOrWhiteSpace(name)) { _names.TryAdd(id, name); break; }
+                }
+            }
+        }
+        catch (SqliteException) { }
+        catch (IOException) { }
+    }
+
+    /// <summary>QQ NT stores group uin/name in numeric columns 60001/60007.</summary>
+    private void LoadQqNtGroupNames()
+    {
+        var path = Path.Combine(_root, "group_info.db");
+        if (!File.Exists(path)) return;
+        try
+        {
+            using var connection = Open(path);
+            var tables = ListTables(connection).ToHashSet(StringComparer.Ordinal);
+            foreach (var table in new[] { "group_list", "group_detail_info_ver1" })
+            {
+                if (!tables.Contains(table)) continue;
+                var columns = TableColumns(connection, table);
+                if (columns.Contains("60001") && columns.Contains("60007"))
+                    ReadNameMap(connection, table, "60001", "60007", _groupNames);
+            }
+        }
+        catch (SqliteException) { }
+        catch (IOException) { }
+    }
+
+    /// <summary>
+    /// QQ NT stores per-group member display names in group_member3 numeric columns:
+    /// 60001 = group id, 1000 = member uid, 64003 = group card, 20002 = nickname,
+    /// 64029 = remark. Prefer the group card, then the nickname, then the remark.
+    /// </summary>
+    private void LoadQqNtGroupMembers()
+    {
+        var path = Path.Combine(_root, "group_info.db");
+        if (!File.Exists(path)) return;
+        try
+        {
+            using var connection = Open(path);
+            var tables = ListTables(connection).ToHashSet(StringComparer.Ordinal);
+            if (!tables.Contains("group_member3")) return;
+            var columns = TableColumns(connection, "group_member3");
+            if (!columns.Contains("60001") || !columns.Contains("1000")) return;
+
+            var nameCols = new List<string>(3);
+            if (columns.Contains("64003")) nameCols.Add("64003");
+            if (columns.Contains("20002")) nameCols.Add("20002");
+            if (columns.Contains("64029")) nameCols.Add("64029");
+            if (nameCols.Count == 0) return;
+
+            var select = string.Join(", ", nameCols.Select(c => $"\"{c}\""));
+            using var command = connection.CreateCommand();
+            command.CommandText = $"select \"60001\", \"1000\", {select} from \"group_member3\"";
+            using var reader = command.ExecuteReader();
+            while (reader.Read())
+            {
+                var groupId = reader.IsDBNull(0) ? "" : Convert.ToString(reader.GetValue(0), CultureInfo.InvariantCulture) ?? "";
+                var uid = reader.IsDBNull(1) ? "" : Convert.ToString(reader.GetValue(1), CultureInfo.InvariantCulture) ?? "";
+                if (groupId.Length == 0 || uid.Length == 0) continue;
+                for (var i = 0; i < nameCols.Count; i++)
+                {
+                    var name = reader.IsDBNull(i + 2) ? "" : Convert.ToString(reader.GetValue(i + 2), CultureInfo.InvariantCulture) ?? "";
+                    if (!string.IsNullOrWhiteSpace(name)) { _groupMembers.TryAdd((groupId, uid), name); break; }
+                }
+            }
+        }
+        catch (SqliteException) { }
+        catch (IOException) { }
+    }
+
+    private static void ReadNameMap(SqliteConnection connection, string table,
+        string uidCol, string nameCol, Dictionary<string, string> target)
+    {
+        try
+        {
+            using var command = connection.CreateCommand();
+            command.CommandText = $"select \"{uidCol}\", \"{nameCol}\" from \"{table}\"";
+            using var reader = command.ExecuteReader();
+            while (reader.Read())
+            {
+                var id = reader.IsDBNull(0) ? "" : Convert.ToString(reader.GetValue(0), CultureInfo.InvariantCulture) ?? "";
+                var name = reader.IsDBNull(1) ? "" : Convert.ToString(reader.GetValue(1), CultureInfo.InvariantCulture) ?? "";
+                if (id.Length > 0 && !string.IsNullOrWhiteSpace(name)) target.TryAdd(id, name);
+            }
+        }
+        catch (SqliteException) { }
     }
 
     private static string? FirstOf(HashSet<string> columns, params string[] names)
@@ -125,8 +241,10 @@ public sealed class QqMessageReader : IDisposable
     private string GroupName(string id)
     {
         if (string.IsNullOrEmpty(id)) return "";
-        return _groupNames.TryGetValue(id, out var name) && name.Length > 0 ? name : id;
+        return _groupNames.TryGetValue(id, out var name) && !string.IsNullOrWhiteSpace(name) ? name : id;
     }
+
+    public string GetConversationName(string id, bool group) => group ? GroupName(id) : DisplayName(id);
 
     /// <summary>Distinct conversations from the c2c and group tables, ordered by last activity.</summary>
     public IReadOnlyList<QqConversation> ListConversations()
@@ -158,7 +276,9 @@ public sealed class QqMessageReader : IDisposable
             while (reader.Read())
             {
                 var id = reader.IsDBNull(0) ? "" : Convert.ToString(reader.GetValue(0), CultureInfo.InvariantCulture) ?? "";
-                if (id.Length == 0) continue;
+                // QQ NT leaves placeholder rows with peer "0"; drop them so they don't
+                // surface as a bogus "0" conversation.
+                if (id.Length == 0 || id == "0") continue;
                 var count = reader.IsDBNull(1) ? 0L : Convert.ToInt64(reader.GetValue(1), CultureInfo.InvariantCulture);
                 var last = reader.IsDBNull(2) ? 0L : Convert.ToInt64(reader.GetValue(2), CultureInfo.InvariantCulture);
                 result.Add((id, count, last));
@@ -242,17 +362,28 @@ public sealed class QqMessageReader : IDisposable
         var senderUid = TextOf(reader, 3);
         var senderQq = TextOf(reader, 4);
         var direction = reader.IsDBNull(5) ? 0L : Convert.ToInt64(reader.GetValue(5), CultureInfo.InvariantCulture);
-        var sentByMe = direction == 1;
+        // QQ NT direction: 0 = received, 3 = system notice, 1/2/4/5 = sent by me.
+        var sentByMe = direction != 0 && direction != 3;
         var blob = ReadBlob(reader, 6);
         var text = blob is null ? "" : ProtoReader.ExtractText(blob);
         var kind = text.Length > 0 ? "text" : "other";
-        var display = kind == "text"
-            ? (senderQq.Length > 0 ? DisplayName(senderQq) : senderUid)
-            : (senderQq.Length > 0 ? senderQq : senderUid);
         if (kind == "other") text = "[非文本消息]";
+        var sender = ResolveSender(senderUid, senderQq, sentByMe, group, conversationId);
         return new QqMessage(conversationId, rowId, msgId, createTime, senderUid, senderQq,
-            display.Length > 0 ? display : (sentByMe ? "我" : "未知发送者"),
-            sentByMe, kind, text);
+            sender, sentByMe, kind, text);
+    }
+
+    private string ResolveSender(string senderUid, string senderQq, bool sentByMe, bool group, string groupId)
+    {
+        if (sentByMe) return "我";
+        if (senderUid.Length > 0)
+        {
+            if (group && _groupMembers.TryGetValue((groupId, senderUid), out var member) && member.Length > 0)
+                return member;
+            return DisplayName(senderUid);
+        }
+        if (senderQq.Length > 0 && senderQq != "0") return senderQq;
+        return "系统";
     }
 
     private static string TextOf(SqliteDataReader reader, int index)

@@ -325,12 +325,140 @@ public sealed class QqLocalTests : IDisposable
         var groupMessages = reader.ReadMessages("123456789", group: true);
         Assert.Equal(2, groupMessages.Count);
         Assert.Equal("各位同学，下周三 18:00 前提交实验报告。", groupMessages[0].Text);
-        Assert.Equal("10001", groupMessages[0].Sender);
+        Assert.Equal("u_teacher", groupMessages[0].Sender);
+        Assert.False(groupMessages[0].SentByMe);
         Assert.Equal("收到", groupMessages[1].Text);
+        Assert.Equal("我", groupMessages[1].Sender);
+        Assert.True(groupMessages[1].SentByMe);
 
         var privateMessages = reader.ReadMessages("u_friend", group: false);
         Assert.Single(privateMessages);
         Assert.Equal("明天见", privateMessages[0].Text);
+    }
+
+    [Theory]
+    [InlineData("group_list")]
+    [InlineData("group_detail_info_ver1")]
+    public void Reader_ReadsGroupNamesFromQqNtNumericColumns(string table)
+    {
+        var dir = WorkPath("decrypted-group-names-" + table);
+        Directory.CreateDirectory(dir);
+        WriteMessageDatabase(Path.Combine(dir, "nt_msg.db"));
+        using (var connection = new SqliteConnection($"Data Source={Path.Combine(dir, "group_info.db")};Pooling=False"))
+        {
+            connection.Open();
+            Execute(connection, $"create table {table} (\"60001\" integer primary key, \"60007\" text)");
+            Execute(connection, $"insert into {table} values (123456789, '课程＆实验群（2026）')");
+        }
+
+        using var reader = new QqMessageReader(dir);
+        var group = Assert.Single(reader.ListConversations(), c => c.Id == "123456789");
+        Assert.Equal("课程＆实验群（2026）", group.Name);
+        Assert.Equal("课程＆实验群（2026）", reader.GetConversationName("123456789", group: true));
+    }
+
+    [Fact]
+    public void Reader_ReadsBuddyNamesFromProfileInfoV6()
+    {
+        var dir = WorkPath("decrypted-buddy-names");
+        Directory.CreateDirectory(dir);
+        WriteMessageDatabase(Path.Combine(dir, "nt_msg.db"));
+        using (var connection = new SqliteConnection($"Data Source={Path.Combine(dir, "profile_info.db")};Pooling=False"))
+        {
+            connection.Open();
+            Execute(connection, "create table profile_info_v6 (\"1000\" text primary key, \"20002\" text, \"20009\" text)");
+            Execute(connection, "insert into profile_info_v6 values ('u_friend', '昵称', '备注')");
+            Execute(connection, "insert into profile_info_v6 values ('u_nickonly', '只有昵称', null)");
+        }
+
+        using var reader = new QqMessageReader(dir);
+
+        // Remark is preferred over nickname.
+        Assert.Equal("备注", reader.GetConversationName("u_friend", group: false));
+        // Nickname is used when no remark is set.
+        Assert.Equal("只有昵称", reader.GetConversationName("u_nickonly", group: false));
+        // Unknown uid falls back to the id itself.
+        Assert.Equal("u_unknown", reader.GetConversationName("u_unknown", group: false));
+
+        var c2c = Assert.Single(reader.ListConversations(), c => c.Id == "u_friend");
+        Assert.Equal("备注", c2c.Name);
+    }
+
+    [Fact]
+    public void Reader_ResolvesSenderNamesFromBuddyAndGroupMemberTables()
+    {
+        var dir = WorkPath("decrypted-sender-names");
+        Directory.CreateDirectory(dir);
+        using (var connection = new SqliteConnection($"Data Source={Path.Combine(dir, "nt_msg.db")};Pooling=False"))
+        {
+            connection.Open();
+            Execute(connection, """
+                create table c2c_msg_table ("40001" integer, "40050" integer, "40020" text, "40033" text,
+                    "40013" integer, "40021" text, "40030" text, "40800" blob);
+                create table group_msg_table ("40001" integer, "40050" integer, "40020" text, "40033" text,
+                    "40013" integer, "40021" text, "40030" text, "40800" blob);
+                """);
+            // 群成员发言（好友，有群名片）。
+            Insert(connection, "group_msg_table", 1, 1762000000, "u_friend", "10001", 0, "123456789", TextBody("群成员发言"));
+            // 我发出的群消息，direction=2 也应是「我」。
+            Insert(connection, "group_msg_table", 2, 1762000100, "u_me", "10002", 2, "123456789", TextBody("我回复"));
+            // 系统消息，sender 为空。
+            Insert(connection, "group_msg_table", 3, 1762000200, "", "0", 3, "123456789", TextBody("某成员戳了戳你"));
+            // 私聊消息，对方 sender 为好友，应显示备注。
+            Insert(connection, "c2c_msg_table", 1, 1762000300, "u_friend", "10003", 0, "u_friend", TextBody("私聊"));
+        }
+        using (var connection = new SqliteConnection($"Data Source={Path.Combine(dir, "profile_info.db")};Pooling=False"))
+        {
+            connection.Open();
+            Execute(connection, "create table profile_info_v6 (\"1000\" text primary key, \"20002\" text, \"20009\" text)");
+            Execute(connection, "insert into profile_info_v6 values ('u_friend', '昵称', '备注')");
+        }
+        using (var connection = new SqliteConnection($"Data Source={Path.Combine(dir, "group_info.db")};Pooling=False"))
+        {
+            connection.Open();
+            Execute(connection, "create table group_member3 (\"60001\" integer, \"1000\" text, \"64003\" text, \"20002\" text, \"64029\" text)");
+            Execute(connection, "insert into group_member3 values (123456789, 'u_friend', '群名片', '昵称', '备注')");
+        }
+
+        using var reader = new QqMessageReader(dir);
+
+        var groupMessages = reader.ReadMessages("123456789", group: true);
+        Assert.Equal(3, groupMessages.Count);
+        Assert.Equal("群名片", groupMessages[0].Sender);   // 群名片优先于好友备注
+        Assert.False(groupMessages[0].SentByMe);
+        Assert.Equal("我", groupMessages[1].Sender);        // direction=2 也识别为我发出
+        Assert.True(groupMessages[1].SentByMe);
+        Assert.Equal("系统", groupMessages[2].Sender);      // sender 为空的系统消息
+        Assert.False(groupMessages[2].SentByMe);
+
+        var privateMessages = reader.ReadMessages("u_friend", group: false);
+        Assert.Single(privateMessages);
+        Assert.Equal("备注", privateMessages[0].Sender);    // 私聊 sender 用好友备注
+        Assert.False(privateMessages[0].SentByMe);
+    }
+
+    [Fact]
+    public void Reader_IgnoresPlaceholderPeerZero()
+    {
+        var dir = WorkPath("decrypted-peer-zero");
+        Directory.CreateDirectory(dir);
+        using (var connection = new SqliteConnection($"Data Source={Path.Combine(dir, "nt_msg.db")};Pooling=False"))
+        {
+            connection.Open();
+            Execute(connection, """
+                create table c2c_msg_table ("40001" integer, "40050" integer, "40020" text, "40033" text,
+                    "40013" integer, "40021" text, "40030" text, "40800" blob);
+                create table group_msg_table ("40001" integer, "40050" integer, "40020" text, "40033" text,
+                    "40013" integer, "40021" text, "40030" text, "40800" blob);
+                """);
+            Insert(connection, "group_msg_table", 1, 1762000000, "u_me", "10002", 1, "123456789", TextBody("正常群消息"));
+            Insert(connection, "group_msg_table", 2, 1762000100, "0", "0", 0, "0", Array.Empty<byte>());
+        }
+
+        using var reader = new QqMessageReader(dir);
+        var conversations = reader.ListConversations();
+        Assert.DoesNotContain(conversations, c => c.Id == "0");
+        Assert.Contains(conversations, c => c.Id == "123456789");
     }
 
     [Fact]
