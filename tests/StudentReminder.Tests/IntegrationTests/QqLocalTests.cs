@@ -437,6 +437,126 @@ public sealed class QqLocalTests : IDisposable
         Assert.False(privateMessages[0].SentByMe);
     }
 
+    /// <summary>
+    /// Synthetic message schema that also carries 40093, the sender nickname snapshot taken by
+    /// QQ NT at send time. All ids are synthetic.
+    /// </summary>
+    private const string MessageSchemaWithSenderName = """
+        create table c2c_msg_table ("40001" integer, "40050" integer, "40020" text, "40033" text,
+            "40013" integer, "40021" text, "40030" text, "40800" blob, "40093" text);
+        create table group_msg_table ("40001" integer, "40050" integer, "40020" text, "40033" text,
+            "40013" integer, "40021" text, "40030" text, "40800" blob, "40093" text);
+        """;
+
+    private static void InsertWithSenderName(SqliteConnection connection, string table, long msgId,
+        long createTime, string senderUid, string senderQq, long direction, string peer, byte[] body,
+        string senderName)
+    {
+        using var command = connection.CreateCommand();
+        command.CommandText = $"insert into \"{table}\" (\"40001\",\"40050\",\"40020\",\"40033\",\"40013\",\"40021\",\"40030\",\"40800\",\"40093\")" +
+            " values ($a,$b,$c,$d,$e,$f,$g,$h,$i)";
+        command.Parameters.AddWithValue("$a", msgId);
+        command.Parameters.AddWithValue("$b", createTime);
+        command.Parameters.AddWithValue("$c", senderUid);
+        command.Parameters.AddWithValue("$d", senderQq);
+        command.Parameters.AddWithValue("$e", direction);
+        command.Parameters.AddWithValue("$f", peer);
+        command.Parameters.AddWithValue("$g", peer);
+        command.Parameters.AddWithValue("$h", body);
+        command.Parameters.AddWithValue("$i", senderName);
+        command.ExecuteNonQuery();
+    }
+
+    /// <summary>
+    /// ISSUE-01 B 类：QQ NT 把 40020 误填为群号（等于 40021）且 40033 为 0 的群系统消息，
+    /// 应显示「系统」而不是群号；真实成员的纯 uid 回退行为不变。
+    /// </summary>
+    [Fact]
+    public void Reader_TreatsGroupNumberSenderAsSystemMessage()
+    {
+        var dir = WorkPath("decrypted-group-system");
+        Directory.CreateDirectory(dir);
+        using (var connection = new SqliteConnection($"Data Source={Path.Combine(dir, "nt_msg.db")};Pooling=False"))
+        {
+            connection.Open();
+            Execute(connection, MessageSchemaWithSenderName);
+            InsertWithSenderName(connection, "group_msg_table", 1, 1762000000, "1000000001", "0", 0,
+                "1000000001", TextBody("群成员变更通知"), "");
+            InsertWithSenderName(connection, "group_msg_table", 2, 1762000100, "u_1000000002", "0", 0,
+                "1000000001", TextBody("普通成员发言"), "");
+        }
+
+        using var reader = new QqMessageReader(dir);
+        var messages = reader.ReadMessages("1000000001", group: true);
+        Assert.Equal(2, messages.Count);
+        Assert.Equal("系统", messages[0].Sender);
+        Assert.False(messages[0].SentByMe);
+        Assert.Equal("1000000001", messages[0].SenderUid);   // 原始值保留，便于排查
+        Assert.Equal("u_1000000002", messages[1].Sender);    // 无映射的普通成员仍回退 uid
+    }
+
+    /// <summary>
+    /// ISSUE-01 A 类：真实 uid 但非好友、也不在 group_member3 时，用消息行内 40093 昵称快照兜底；
+    /// 群名片、好友备注与「我」的既有优先级不变。
+    /// </summary>
+    [Fact]
+    public void Reader_FallsBackToMessageSenderNameSnapshot()
+    {
+        var dir = WorkPath("decrypted-sender-snapshot");
+        Directory.CreateDirectory(dir);
+        using (var connection = new SqliteConnection($"Data Source={Path.Combine(dir, "nt_msg.db")};Pooling=False"))
+        {
+            connection.Open();
+            Execute(connection, MessageSchemaWithSenderName);
+            // 退群/未缓存成员：群成员表和好友表都查不到，只有 40093。
+            InsertWithSenderName(connection, "group_msg_table", 1, 1762000000, "u_1000000002", "0", 0,
+                "1000000001", TextBody("退群成员的历史消息"), "合成昵称甲");
+            // 群名片优先于昵称快照。
+            InsertWithSenderName(connection, "group_msg_table", 2, 1762000100, "u_member", "10002", 0,
+                "1000000001", TextBody("群名片发言"), "过期昵称");
+            // 本人发出仍为「我」。
+            InsertWithSenderName(connection, "group_msg_table", 3, 1762000200, "u_me", "10002", 1,
+                "1000000001", TextBody("我发的"), "过期昵称");
+            // 快照为空时仍回退 uid。
+            InsertWithSenderName(connection, "group_msg_table", 4, 1762000300, "u_1000000003", "0", 0,
+                "1000000001", TextBody("无昵称快照"), "");
+            // 私聊：好友备注优先于昵称快照。
+            InsertWithSenderName(connection, "c2c_msg_table", 1, 1762000400, "u_friend", "10003", 0,
+                "u_friend", TextBody("私聊"), "过期昵称");
+        }
+        using (var connection = new SqliteConnection($"Data Source={Path.Combine(dir, "profile_info.db")};Pooling=False"))
+        {
+            connection.Open();
+            Execute(connection, "create table profile_info_v6 (\"1000\" text primary key, \"20002\" text, \"20009\" text)");
+            Execute(connection, "insert into profile_info_v6 values ('u_friend', '昵称', '备注')");
+        }
+        using (var connection = new SqliteConnection($"Data Source={Path.Combine(dir, "group_info.db")};Pooling=False"))
+        {
+            connection.Open();
+            Execute(connection, "create table group_member3 (\"60001\" integer, \"1000\" text, \"64003\" text, \"20002\" text, \"64029\" text)");
+            Execute(connection, "insert into group_member3 values (1000000001, 'u_member', '群名片', '昵称', '备注')");
+        }
+
+        using var reader = new QqMessageReader(dir);
+
+        var groupMessages = reader.ReadMessages("1000000001", group: true);
+        Assert.Equal(4, groupMessages.Count);
+        Assert.Equal("合成昵称甲", groupMessages[0].Sender);  // 40093 兜底
+        Assert.False(groupMessages[0].SentByMe);
+        Assert.Equal("群名片", groupMessages[1].Sender);      // 群名片优先
+        Assert.Equal("我", groupMessages[2].Sender);          // 本人
+        Assert.Equal("u_1000000003", groupMessages[3].Sender); // 快照为空回退 uid
+
+        var privateMessages = reader.ReadMessages("u_friend", group: false);
+        Assert.Single(privateMessages);
+        Assert.Equal("备注", privateMessages[0].Sender);      // 好友备注优先
+
+        // 增量读取同样带上 40093 兜底。
+        var after = reader.ReadMessagesAfter("1000000001", group: true, lastRowid: 0);
+        Assert.Equal(4, after.Count);
+        Assert.Equal("合成昵称甲", after[0].Sender);
+    }
+
     [Fact]
     public void Reader_IgnoresPlaceholderPeerZero()
     {

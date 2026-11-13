@@ -15,18 +15,22 @@ public sealed record QqMessage(
 /// Reads decrypted QQ NT databases (nt_msg.db, profile_info.db, group_info.db) into a
 /// conversation + message model. Numeric column names mirror QQ NT's schema (40001 msgid,
 /// 40050 time, 40020 sender uid, 40033 sender qq, 40021 peer, 40030 peer qq, 40013 direction,
-/// 40800 protobuf body). Text is extracted from field 45101; media becomes a placeholder.
+/// 40093 sender nickname snapshot, 40800 protobuf body). Text is extracted from field 45101;
+/// media becomes a placeholder.
 /// </summary>
 public sealed class QqMessageReader : IDisposable
 {
     private const string C2cTable = "c2c_msg_table";
     private const string GroupTable = "group_msg_table";
+    /// <summary>Message column holding the sender's nickname as a snapshot taken at send time.</summary>
+    private const string SenderNameColumn = "40093";
 
     private readonly string _root;
     private readonly SqliteConnection _msg;
     private readonly Dictionary<string, string> _names = new(StringComparer.Ordinal); // uid -> name
     private readonly Dictionary<string, string> _groupNames = new(StringComparer.Ordinal);
     private readonly Dictionary<(string Group, string Uid), string> _groupMembers = new(); // (group id, uid) -> display name
+    private readonly Dictionary<string, bool> _hasSenderName = new(StringComparer.Ordinal); // table -> has 40093
 
     public QqMessageReader(string decryptedDir)
     {
@@ -222,6 +226,23 @@ public sealed class QqMessageReader : IDisposable
         return columns;
     }
 
+    /// <summary>
+    /// Whether a message table exposes <see cref="SenderNameColumn"/>. Older QQ NT builds may
+    /// omit the column, so it is only selected when present; otherwise messages are read as before.
+    /// </summary>
+    private bool HasSenderNameColumn(string table)
+    {
+        if (_hasSenderName.TryGetValue(table, out var known)) return known;
+        var present = false;
+        try
+        {
+            present = TableColumns(_msg, table).Contains(SenderNameColumn);
+        }
+        catch (SqliteException) { }
+        _hasSenderName[table] = present;
+        return present;
+    }
+
     private HashSet<string> Tables()
     {
         using var command = _msg.CreateCommand();
@@ -316,10 +337,12 @@ public sealed class QqMessageReader : IDisposable
     {
         var table = group ? GroupTable : C2cTable;
         var messages = new List<QqMessage>();
+        var withSenderName = HasSenderNameColumn(table);
         try
         {
             using var command = _msg.CreateCommand();
             command.CommandText = $"select rowid, \"40001\", \"40050\", \"40020\", \"40033\", \"40013\", \"40800\"" +
+                (withSenderName ? ", \"40093\"" : "") +
                 $" from \"{table}\" where \"40021\" = $id order by rowid asc";
             command.Parameters.AddWithValue("$id", conversationId);
             using var reader = command.ExecuteReader();
@@ -328,7 +351,7 @@ public sealed class QqMessageReader : IDisposable
                 var createTime = reader.IsDBNull(2) ? 0L : Convert.ToInt64(reader.GetValue(2), CultureInfo.InvariantCulture);
                 if (startUnix.HasValue && createTime < startUnix.Value) continue;
                 if (endUnix.HasValue && createTime > endUnix.Value) continue;
-                messages.Add(BuildMessage(reader, conversationId, group));
+                messages.Add(BuildMessage(reader, conversationId, group, withSenderName));
             }
         }
         catch (SqliteException) { }
@@ -340,21 +363,23 @@ public sealed class QqMessageReader : IDisposable
     {
         var table = group ? GroupTable : C2cTable;
         var messages = new List<QqMessage>();
+        var withSenderName = HasSenderNameColumn(table);
         try
         {
             using var command = _msg.CreateCommand();
             command.CommandText = $"select rowid, \"40001\", \"40050\", \"40020\", \"40033\", \"40013\", \"40800\"" +
+                (withSenderName ? ", \"40093\"" : "") +
                 $" from \"{table}\" where \"40021\" = $id and rowid > $rowid order by rowid asc";
             command.Parameters.AddWithValue("$id", conversationId);
             command.Parameters.AddWithValue("$rowid", lastRowid);
             using var reader = command.ExecuteReader();
-            while (reader.Read()) messages.Add(BuildMessage(reader, conversationId, group));
+            while (reader.Read()) messages.Add(BuildMessage(reader, conversationId, group, withSenderName));
         }
         catch (SqliteException) { }
         return messages;
     }
 
-    private QqMessage BuildMessage(SqliteDataReader reader, string conversationId, bool group)
+    private QqMessage BuildMessage(SqliteDataReader reader, string conversationId, bool group, bool withSenderName)
     {
         var rowId = reader.GetInt64(0);
         var msgId = reader.IsDBNull(1) ? 0L : Convert.ToInt64(reader.GetValue(1), CultureInfo.InvariantCulture);
@@ -368,22 +393,44 @@ public sealed class QqMessageReader : IDisposable
         var text = blob is null ? "" : ProtoReader.ExtractText(blob);
         var kind = text.Length > 0 ? "text" : "other";
         if (kind == "other") text = "[非文本消息]";
-        var sender = ResolveSender(senderUid, senderQq, sentByMe, group, conversationId);
+        // A send-time nickname snapshot; QQ NT fills it for roughly 41% of received group
+        // messages. It is only a last resort, after the member/friend maps.
+        var senderNameSnapshot = withSenderName ? TextOf(reader, 7).Trim() : "";
+        var sender = ResolveSender(senderUid, senderQq, sentByMe, group, conversationId, senderNameSnapshot);
         return new QqMessage(conversationId, rowId, msgId, createTime, senderUid, senderQq,
             sender, sentByMe, kind, text);
     }
 
-    private string ResolveSender(string senderUid, string senderQq, bool sentByMe, bool group, string groupId)
+    /// <summary>
+    /// Display name for a message sender, in order: me → system notice → group member card /
+    /// nickname / remark → friend remark / nickname → nickname snapshot carried by the message
+    /// itself (40093) → the raw uid or QQ number.
+    /// </summary>
+    private string ResolveSender(string senderUid, string senderQq, bool sentByMe, bool group,
+        string groupId, string senderNameSnapshot)
     {
         if (sentByMe) return "我";
+        // QQ NT fills 40020 with the group number (and 40033 with 0) for group system rows such
+        // as member or announcement notices. A real sender always carries a "u_" uid, so a pure
+        // numeric uid equal to the group id means the row has no individual sender.
+        if (group && senderUid.Length > 0 && senderUid == groupId && IsAllDigits(senderUid)) return "系统";
         if (senderUid.Length > 0)
         {
             if (group && _groupMembers.TryGetValue((groupId, senderUid), out var member) && member.Length > 0)
                 return member;
-            return DisplayName(senderUid);
+            if (_names.TryGetValue(senderUid, out var name) && name.Length > 0) return name;
+            if (!string.IsNullOrWhiteSpace(senderNameSnapshot)) return senderNameSnapshot;
+            return senderUid;
         }
         if (senderQq.Length > 0 && senderQq != "0") return senderQq;
         return "系统";
+    }
+
+    private static bool IsAllDigits(string value)
+    {
+        foreach (var ch in value)
+            if (ch is < '0' or > '9') return false;
+        return true;
     }
 
     private static string TextOf(SqliteDataReader reader, int index)

@@ -203,7 +203,7 @@
         "dependencies": {
           "LLamaSharp": "[0.30.0, )",
           "LLamaSharp.Backend.Cpu": "[0.30.0, )",
-          "StudentReminder.Core": "[0.6.6-alpha, )"
+          "StudentReminder.Core": "[0.6.7-alpha, )"
         }
       },
       "studentreminder.core": {
@@ -213,19 +213,19 @@
         "type": "Project",
         "dependencies": {
           "Microsoft.Data.Sqlite": "[10.0.14, )",
-          "StudentReminder.Core": "[0.6.6-alpha, )"
+          "StudentReminder.Core": "[0.6.7-alpha, )"
         }
       },
       "studentreminder.ingestion": {
         "type": "Project",
         "dependencies": {
-          "StudentReminder.Core": "[0.6.6-alpha, )"
+          "StudentReminder.Core": "[0.6.7-alpha, )"
         }
       },
       "studentreminder.notifications": {
         "type": "Project",
         "dependencies": {
-          "StudentReminder.Core": "[0.6.6-alpha, )"
+          "StudentReminder.Core": "[0.6.7-alpha, )"
         }
       },
       "studentreminder.qqlocal": {
@@ -238,9 +238,9 @@
       "studentreminder.qqlocal.adapter": {
         "type": "Project",
         "dependencies": {
-          "StudentReminder.Core": "[0.6.6-alpha, )",
-          "StudentReminder.Ingestion": "[0.6.6-alpha, )",
-          "StudentReminder.QqLocal": "[0.6.6-alpha, )"
+          "StudentReminder.Core": "[0.6.7-alpha, )",
+          "StudentReminder.Ingestion": "[0.6.7-alpha, )",
+          "StudentReminder.QqLocal": "[0.6.7-alpha, )"
         }
       },
       "studentreminder.wxlocal": {
@@ -254,9 +254,9 @@
       "studentreminder.wxlocal.adapter": {
         "type": "Project",
         "dependencies": {
-          "StudentReminder.Core": "[0.6.6-alpha, )",
-          "StudentReminder.Ingestion": "[0.6.6-alpha, )",
-          "StudentReminder.WxLocal": "[0.6.6-alpha, )"
+          "StudentReminder.Core": "[0.6.7-alpha, )",
+          "StudentReminder.Ingestion": "[0.6.7-alpha, )",
+          "StudentReminder.WxLocal": "[0.6.7-alpha, )"
         }
       }
     }
