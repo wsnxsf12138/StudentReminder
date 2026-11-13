@@ -111,6 +111,14 @@ public sealed partial class SqliteMessageRepository
                 ("$name", conversation.Name), ("$external", conversation.Id));
             await backfill.ExecuteNonQueryAsync(cancellationToken);
         }
+        // QQ NT leaves placeholder rows with peer "0"/"" that older builds could persist
+        // as a bogus conversation. Re-reading sessions drops them for this source.
+        using (var cleanup = Command(connection, transaction, """
+            DELETE FROM conversations WHERE source_id=$source AND external_id IN ('','0');
+            """, ("$source", sourceId)))
+        {
+            await cleanup.ExecuteNonQueryAsync(cancellationToken);
+        }
         await transaction.CommitAsync(cancellationToken);
     }
 
@@ -118,7 +126,7 @@ public sealed partial class SqliteMessageRepository
     {
         using var connection = await OpenAsync(cancellationToken);
         using var command = Command(connection, null,
-            "SELECT external_id,name,type,selected FROM conversations WHERE source_id=$id ORDER BY type,name;", ("$id", sourceId));
+            "SELECT external_id,name,type,selected FROM conversations WHERE source_id=$id AND external_id<>'' AND external_id<>'0' ORDER BY type,name;", ("$id", sourceId));
         using var reader = await command.ExecuteReaderAsync(cancellationToken);
         var result = new List<SelectedConversation>();
         while (await reader.ReadAsync(cancellationToken)) result.Add(new(reader.GetString(0), reader.GetString(1), reader.GetString(2), reader.GetInt32(3) == 1));

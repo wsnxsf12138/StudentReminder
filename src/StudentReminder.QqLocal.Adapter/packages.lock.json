@@ -58,7 +58,7 @@
       "studentreminder.ingestion": {
         "type": "Project",
         "dependencies": {
-          "StudentReminder.Core": "[0.6.5-alpha, )"
+          "StudentReminder.Core": "[0.6.6-alpha, )"
         }
       },
       "studentreminder.qqlocal": {

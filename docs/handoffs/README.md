@@ -22,5 +22,6 @@
 | 0.6.3-alpha | [v0.6.3-alpha](v0.6.3-alpha.md) | QQ 群会话名称显示修复 |
 | 0.6.4-alpha | [v0.6.4-alpha](v0.6.4-alpha.md) | QQ 私聊名称修复与无效会话过滤 |
 | 0.6.5-alpha | [v0.6.5-alpha](v0.6.5-alpha.md) | QQ 消息发送者名称及本人、系统消息识别 |
+| 0.6.6-alpha | [v0.6.6-alpha](v0.6.6-alpha.md) | 清理 QqLocal 残留「0」伪群聊会话 |
 
 后续版本复制 [模板](TEMPLATE.md)，按实际结果填写，完成后更新此索引、版本号和 CHANGELOG。未执行、受阻或未通过的项目应明确标注，不能写成已完成。
