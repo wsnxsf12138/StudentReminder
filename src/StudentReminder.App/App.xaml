@@ -6,6 +6,7 @@
     <ResourceDictionary>
       <ResourceDictionary.MergedDictionaries>
         <ResourceDictionary Source="Assets/Icons/StatusIcons.xaml" />
+        <ResourceDictionary Source="Assets/Icons/NavigationStyles.xaml" />
       </ResourceDictionary.MergedDictionaries>
       <Style x:Key="AppWindow" TargetType="Window">
         <Setter Property="Icon" Value="/StudentReminder.App;component/Assets/Icons/student-reminder.ico" />

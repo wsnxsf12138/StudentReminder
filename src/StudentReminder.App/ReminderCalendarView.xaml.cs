@@ -33,7 +33,7 @@ public partial class ReminderCalendarView : UserControl
     internal void ShowLoadError()
     {
         LoadError.Visibility = Visibility.Visible;
-        if (!loaded) MonthSummary.Text = "";
+        if (!loaded) MonthSummary.Text = "暂时无法读取安排";
         RenderSelection();
     }
 
@@ -55,9 +55,12 @@ public partial class ReminderCalendarView : UserControl
         MonthTitle.Text = $"{month:yyyy 年 M 月}";
         if (loaded)
         {
-            var count = days.Where(day => day.IsInMonth).SelectMany(day => day.Entries)
-                .Select(entry => entry.Event.Id).Distinct().Count();
-            MonthSummary.Text = count == 0 ? "本月暂无安排" : $"本月 {count} 项事项";
+            var monthEntries = days.Where(day => day.IsInMonth).SelectMany(day => day.Entries).ToArray();
+            var started = monthEntries.Count(entry => !entry.IsCompleted && !entry.IsDeadline);
+            var deadline = monthEntries.Count(entry => !entry.IsCompleted && entry.IsDeadline);
+            var completed = monthEntries.Where(entry => entry.IsCompleted).Select(entry => entry.Event.Id).Distinct().Count();
+            MonthSummary.Text = monthEntries.Length == 0 ? "本月暂无安排" :
+                $"本月  开始 {started} 项 · 截止 {deadline} 项 · 已完成 {completed} 项";
         }
         PreviousMonth.IsEnabled = month != DateOnly.MinValue;
         NextMonth.IsEnabled = month.Year != 9999 || month.Month != 12;
@@ -72,7 +75,7 @@ public partial class ReminderCalendarView : UserControl
         DaySummary.Text = loaded ? $"{dayEntries.Length} 条安排" : "";
         Agenda.ItemsSource = dayEntries;
         EmptyDay.Text = loaded ? "这一天没有已确认的安排。" :
-            LoadError.Visibility == Visibility.Visible ? "" : "正在读取本地事项…";
+            LoadError.Visibility == Visibility.Visible ? "暂时无法读取安排。" : "正在读取本地事项…";
         EmptyDay.Visibility = dayEntries.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
     }
 
@@ -84,10 +87,27 @@ public partial class ReminderCalendarView : UserControl
         selectedDate = date;
         if (day.IsInMonth) RenderSelection();
         else RenderMonth(focusSelected: true);
+        AgendaScroll.ScrollToTop();
+    }
+
+    private void Day_MouseDown(object sender, MouseButtonEventArgs e)
+    {
+        if (sender is not ListBoxItem { DataContext: CalendarDay { Date: not null } day }) return;
+        e.Handled = true;
+        Days.SelectedItem = day;
+        FocusSelectedDay();
+        ShowAgenda();
     }
 
     private void Days_PreviewKeyDown(object sender, KeyEventArgs e)
     {
+        if (e.Key is Key.Enter or Key.Space)
+        {
+            e.Handled = true;
+            ShowAgenda(focusPanel: true);
+            return;
+        }
+
         var offset = e.Key switch
         {
             Key.Left => -1,
@@ -107,6 +127,7 @@ public partial class ReminderCalendarView : UserControl
         {
             selectedDate = date;
             RenderMonth(focusSelected: true);
+            AgendaScroll.ScrollToTop();
             return;
         }
 
@@ -128,12 +149,32 @@ public partial class ReminderCalendarView : UserControl
         var target = new DateOnly(selectedDate.Year, selectedDate.Month, 1).AddMonths(offset);
         selectedDate = target.Year == Today.Year && target.Month == Today.Month ? Today : target;
         RenderMonth();
+        AgendaScroll.ScrollToTop();
     }
 
     private void Today_Click(object sender, RoutedEventArgs e)
     {
         selectedDate = Today;
         RenderMonth();
+        AgendaScroll.ScrollToTop();
+    }
+
+    private void Agenda_Click(object sender, RoutedEventArgs e) => ShowAgenda(focusPanel: true);
+
+    private void ShowAgenda(bool focusPanel = false)
+    {
+        AgendaPanel.Visibility = Visibility.Visible;
+        if (focusPanel) CloseAgendaButton.Focus();
+    }
+
+    private void CloseAgenda_Click(object sender, RoutedEventArgs e) => TryCloseAgenda();
+
+    internal bool TryCloseAgenda()
+    {
+        if (!AgendaPanel.IsVisible) return false;
+        AgendaPanel.Visibility = Visibility.Collapsed;
+        FocusSelectedDay();
+        return true;
     }
 
     private void AgendaItem_Click(object sender, RoutedEventArgs e)

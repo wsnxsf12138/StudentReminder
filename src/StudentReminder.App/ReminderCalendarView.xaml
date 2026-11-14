@@ -3,78 +3,94 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              UseLayoutRounding="True">
   <UserControl.Resources>
-    <SolidColorBrush x:Key="CalendarMuted" Color="#536779" />
-    <SolidColorBrush x:Key="StartBackground" Color="#E0EDE8" />
-    <SolidColorBrush x:Key="StartForeground" Color="#235C50" />
-    <SolidColorBrush x:Key="DeadlineBackground" Color="#DDEAF9" />
-    <SolidColorBrush x:Key="DeadlineForeground" Color="#255B90" />
+    <SolidColorBrush x:Key="CalendarInk" Color="#202B32" />
+    <SolidColorBrush x:Key="CalendarMuted" Color="#53646C" />
+    <SolidColorBrush x:Key="StartTile" Color="#E4EEE9" />
+    <SolidColorBrush x:Key="StartBackground" Color="#CCDED5" />
+    <SolidColorBrush x:Key="StartForeground" Color="#22624C" />
+    <SolidColorBrush x:Key="DeadlineTile" Color="#E1EBF5" />
+    <SolidColorBrush x:Key="DeadlineBackground" Color="#CCDFF0" />
+    <SolidColorBrush x:Key="DeadlineForeground" Color="#245D8C" />
+    <SolidColorBrush x:Key="CompletedTile" Color="#F0ECE3" />
+    <SolidColorBrush x:Key="CompletedBackground" Color="#E6DDCE" />
+    <SolidColorBrush x:Key="CompletedForeground" Color="#645441" />
     <Style x:Key="Weekday" TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
       <Setter Property="HorizontalAlignment" Value="Center" />
       <Setter Property="Foreground" Value="{StaticResource CalendarMuted}" />
-      <Setter Property="FontSize" Value="13" />
+      <Setter Property="FontSize" Value="15" />
+      <Setter Property="FontWeight" Value="Normal" />
     </Style>
-    <Style x:Key="CalendarNav" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
-      <Setter Property="Padding" Value="12,6" />
+    <Style x:Key="CalendarNav" TargetType="Button" BasedOn="{StaticResource NavigationButton}">
+      <Setter Property="Padding" Value="11,7" />
       <Setter Property="MinWidth" Value="34" />
-      <Setter Property="Margin" Value="5,0,0,0" />
+      <Setter Property="FontSize" Value="15" />
+      <Setter Property="VerticalAlignment" Value="Center" />
     </Style>
     <Style x:Key="EntryBadge" TargetType="Border">
       <Setter Property="Background" Value="{StaticResource StartBackground}" />
-      <Setter Property="CornerRadius" Value="6" />
-      <Setter Property="Padding" Value="5,1" />
+      <Setter Property="CornerRadius" Value="10" />
+      <Setter Property="Padding" Value="8,2" />
       <Style.Triggers>
         <DataTrigger Binding="{Binding IsDeadline}" Value="True">
           <Setter Property="Background" Value="{StaticResource DeadlineBackground}" />
         </DataTrigger>
         <DataTrigger Binding="{Binding IsCompleted}" Value="True">
-          <Setter Property="Background" Value="#E7EBEF" />
+          <Setter Property="Background" Value="{StaticResource CompletedBackground}" />
         </DataTrigger>
       </Style.Triggers>
     </Style>
     <Style x:Key="EntryText" TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
-      <Setter Property="FontSize" Value="11" />
+      <Setter Property="FontSize" Value="12" />
+      <Setter Property="FontWeight" Value="Normal" />
       <Setter Property="Foreground" Value="{StaticResource StartForeground}" />
       <Style.Triggers>
         <DataTrigger Binding="{Binding IsDeadline}" Value="True">
           <Setter Property="Foreground" Value="{StaticResource DeadlineForeground}" />
         </DataTrigger>
         <DataTrigger Binding="{Binding IsCompleted}" Value="True">
-          <Setter Property="Foreground" Value="{StaticResource CalendarMuted}" />
+          <Setter Property="Foreground" Value="{StaticResource CompletedForeground}" />
         </DataTrigger>
       </Style.Triggers>
     </Style>
     <Style x:Key="CalendarDayItem" TargetType="ListBoxItem">
-      <Setter Property="Margin" Value="2" />
-      <Setter Property="Padding" Value="5,2" />
+      <Setter Property="Margin" Value="3" />
       <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+      <Setter Property="VerticalContentAlignment" Value="Stretch" />
       <Setter Property="AutomationProperties.Name" Value="{Binding Label}" />
       <Setter Property="Cursor" Value="Hand" />
+      <EventSetter Event="PreviewMouseLeftButtonDown" Handler="Day_MouseDown" />
       <Setter Property="Template">
         <Setter.Value>
           <ControlTemplate TargetType="ListBoxItem">
-            <Border x:Name="Tile" Background="#F4F7F9" BorderBrush="Transparent" BorderThickness="2"
-                    CornerRadius="10" Padding="{TemplateBinding Padding}">
-              <ContentPresenter />
-            </Border>
+            <Grid>
+              <Border x:Name="Tile" Background="#F6F7F7" CornerRadius="14" />
+              <ContentPresenter x:Name="DayContent"
+                                HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                VerticalAlignment="{TemplateBinding VerticalContentAlignment}" />
+              <Border x:Name="Outline" BorderBrush="Transparent" BorderThickness="1" CornerRadius="14" IsHitTestVisible="False" />
+            </Grid>
             <ControlTemplate.Triggers>
+              <DataTrigger Binding="{Binding Preview.IsDeadline}" Value="False">
+                <Setter TargetName="Tile" Property="Background" Value="{StaticResource StartTile}" />
+              </DataTrigger>
+              <DataTrigger Binding="{Binding Preview.IsDeadline}" Value="True">
+                <Setter TargetName="Tile" Property="Background" Value="{StaticResource DeadlineTile}" />
+              </DataTrigger>
+              <DataTrigger Binding="{Binding Preview.IsCompleted}" Value="True">
+                <Setter TargetName="Tile" Property="Background" Value="{StaticResource CompletedTile}" />
+              </DataTrigger>
               <DataTrigger Binding="{Binding IsInMonth}" Value="False">
-                <Setter TargetName="Tile" Property="Background" Value="#FAFBFC" />
+                <Setter TargetName="Tile" Property="Opacity" Value="0.48" />
+                <Setter TargetName="DayContent" Property="Opacity" Value="0.63" />
+              </DataTrigger>
+              <DataTrigger Binding="{Binding IsToday}" Value="True">
+                <Setter TargetName="Outline" Property="BorderBrush" Value="#8CABA1" />
               </DataTrigger>
               <Trigger Property="IsMouseOver" Value="True">
-                <Setter TargetName="Tile" Property="Background" Value="#EAF3F3" />
+                <Setter TargetName="Outline" Property="BorderBrush" Value="#A5B7B3" />
               </Trigger>
-              <DataTrigger Binding="{Binding IsToday}" Value="True">
-                <Setter TargetName="Tile" Property="BorderBrush" Value="#84B3AD" />
-              </DataTrigger>
               <Trigger Property="IsSelected" Value="True">
-                <Setter TargetName="Tile" Property="Background" Value="#EDF7F5" />
-                <Setter TargetName="Tile" Property="BorderBrush" Value="{StaticResource Accent}" />
-              </Trigger>
-              <Trigger Property="IsKeyboardFocused" Value="True">
-                <Setter TargetName="Tile" Property="BorderBrush" Value="{StaticResource Accent}" />
-              </Trigger>
-              <Trigger Property="IsEnabled" Value="False">
-                <Setter TargetName="Tile" Property="Visibility" Value="Hidden" />
+                <Setter TargetName="Outline" Property="BorderBrush" Value="#287A70" />
               </Trigger>
             </ControlTemplate.Triggers>
           </ControlTemplate>
@@ -83,17 +99,14 @@
       <Style.Triggers>
         <DataTrigger Binding="{Binding Date}" Value="{x:Null}">
           <Setter Property="IsEnabled" Value="False" />
+          <Setter Property="Visibility" Value="Hidden" />
         </DataTrigger>
       </Style.Triggers>
     </Style>
   </UserControl.Resources>
+
   <Grid>
-    <Grid.ColumnDefinitions>
-      <ColumnDefinition Width="*" />
-      <ColumnDefinition Width="14" />
-      <ColumnDefinition Width="286" />
-    </Grid.ColumnDefinitions>
-    <Border Background="White" BorderBrush="#DEE6ED" BorderThickness="1" CornerRadius="14" Padding="16,13,16,11">
+    <Border Background="White" BorderBrush="#EBEFED" BorderThickness="1" CornerRadius="18" Padding="23,18,23,17">
       <Grid>
         <Grid.RowDefinitions>
           <RowDefinition Height="Auto" />
@@ -101,21 +114,41 @@
           <RowDefinition Height="*" />
           <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
-        <Grid Margin="3,0,3,7">
+        <Grid Margin="3,0,3,14">
           <Grid.ColumnDefinitions><ColumnDefinition /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
           <StackPanel>
-            <TextBlock x:Name="MonthTitle" FontSize="25" FontWeight="Bold" AutomationProperties.AutomationId="CalendarMonth" />
-            <TextBlock x:Name="MonthSummary" Text="正在读取本地事项…" Foreground="{StaticResource CalendarMuted}" FontSize="12" Margin="0,3,0,0" />
+            <TextBlock x:Name="MonthTitle" FontSize="28" FontWeight="Bold" Foreground="{StaticResource CalendarInk}"
+                       AutomationProperties.AutomationId="CalendarMonth" />
+            <TextBlock x:Name="MonthSummary" Text="正在读取本地事项…" Foreground="{StaticResource CalendarMuted}"
+                       FontSize="14" FontWeight="Normal" Margin="0,9,0,0" />
           </StackPanel>
           <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Top">
-            <Button Content="回到今天" Style="{StaticResource CalendarNav}" Click="Today_Click" />
-            <Button x:Name="PreviousMonth" Content="‹" FontSize="17" Style="{StaticResource CalendarNav}"
-                    AutomationProperties.Name="上个月" Click="PreviousMonth_Click" />
-            <Button x:Name="NextMonth" Content="›" FontSize="17" Style="{StaticResource CalendarNav}"
-                    AutomationProperties.Name="下个月" Click="NextMonth_Click" />
+            <Button Content="今天" Style="{StaticResource CalendarNav}" Click="Today_Click"
+                    AutomationProperties.Name="回到今天" />
+            <Button x:Name="AgendaButton" Content="当天安排" Style="{StaticResource CalendarNav}"
+                    Click="Agenda_Click" AutomationProperties.AutomationId="OpenCalendarAgenda" />
+            <Button x:Name="PreviousMonth" Style="{StaticResource CalendarNav}"
+                    AutomationProperties.Name="上个月" Click="PreviousMonth_Click">
+              <Viewbox Width="16" Height="16">
+                <Canvas Width="24" Height="24">
+                  <Path Data="{StaticResource IconPrevious}" Style="{StaticResource NavigationIcon}"
+                        Stroke="{Binding Foreground, ElementName=PreviousMonth}" />
+                </Canvas>
+              </Viewbox>
+            </Button>
+            <Button x:Name="NextMonth" Style="{StaticResource CalendarNav}"
+                    AutomationProperties.Name="下个月" Click="NextMonth_Click">
+              <Viewbox Width="16" Height="16">
+                <Canvas Width="24" Height="24">
+                  <Path Data="{StaticResource IconNext}" Style="{StaticResource NavigationIcon}"
+                        Stroke="{Binding Foreground, ElementName=NextMonth}" />
+                </Canvas>
+              </Viewbox>
+            </Button>
           </StackPanel>
         </Grid>
-        <UniformGrid Grid.Row="1" Columns="7" Margin="0,0,0,2">
+
+        <UniformGrid Grid.Row="1" Columns="7" Margin="0,0,0,5">
           <TextBlock Text="一" Style="{StaticResource Weekday}" />
           <TextBlock Text="二" Style="{StaticResource Weekday}" />
           <TextBlock Text="三" Style="{StaticResource Weekday}" />
@@ -124,79 +157,96 @@
           <TextBlock Text="六" Style="{StaticResource Weekday}" />
           <TextBlock Text="日" Style="{StaticResource Weekday}" />
         </UniformGrid>
+
         <ListBox x:Name="Days" Grid.Row="2" Background="Transparent" BorderThickness="0" Padding="0"
-                 ScrollViewer.HorizontalScrollBarVisibility="Disabled" ScrollViewer.VerticalScrollBarVisibility="Disabled"
                  ItemContainerStyle="{StaticResource CalendarDayItem}" SelectionChanged="Days_SelectionChanged"
-                 PreviewKeyDown="Days_PreviewKeyDown"
-                 AutomationProperties.Name="事项月历">
+                 PreviewKeyDown="Days_PreviewKeyDown" AutomationProperties.Name="事项月历">
           <ListBox.Template>
             <ControlTemplate TargetType="ListBox"><ItemsPresenter /></ControlTemplate>
           </ListBox.Template>
           <ListBox.ItemsPanel>
-            <ItemsPanelTemplate><UniformGrid Rows="6" Columns="7" /></ItemsPanelTemplate>
+            <ItemsPanelTemplate><UniformGrid Columns="7" /></ItemsPanelTemplate>
           </ListBox.ItemsPanel>
           <ListBox.ItemTemplate>
             <DataTemplate>
-              <StackPanel ClipToBounds="True">
-                <Grid Margin="0,0,0,1">
-                  <Grid.ColumnDefinitions><ColumnDefinition /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
-                  <StackPanel Orientation="Horizontal">
-                  <TextBlock Text="{Binding Number}" FontSize="13" FontWeight="SemiBold">
-                    <TextBlock.Style>
-                      <Style TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
-                        <Style.Triggers>
-                          <DataTrigger Binding="{Binding IsInMonth}" Value="False">
-                            <Setter Property="Foreground" Value="#798696" />
-                          </DataTrigger>
-                        </Style.Triggers>
-                      </Style>
-                    </TextBlock.Style>
-                  </TextBlock>
-                  <Ellipse x:Name="TodayDot" Width="5" Height="5" Fill="{StaticResource Accent}"
-                           VerticalAlignment="Top" Margin="4,2,0,0" Visibility="Collapsed" />
-                  </StackPanel>
-                  <TextBlock Grid.Column="1" Text="{Binding More}" FontSize="10" Foreground="{StaticResource CalendarMuted}"
-                             VerticalAlignment="Center" />
-                </Grid>
-                <ItemsControl ItemsSource="{Binding Preview}">
-                  <ItemsControl.ItemTemplate>
-                    <DataTemplate>
-                      <Border Style="{StaticResource EntryBadge}" Margin="0,0,0,1" ToolTip="{Binding Title}">
-                        <TextBlock Text="{Binding Preview}" Style="{StaticResource EntryText}" TextTrimming="CharacterEllipsis" />
-                      </Border>
-                    </DataTemplate>
-                  </ItemsControl.ItemTemplate>
-                </ItemsControl>
-              </StackPanel>
+              <Grid ClipToBounds="True">
+                <Grid.RowDefinitions>
+                  <RowDefinition Height="*" />
+                  <RowDefinition Height="28" />
+                  <RowDefinition Height="27" />
+                  <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+                <TextBlock x:Name="DayNumber" Grid.Row="1" Text="{Binding Number}" FontSize="18"
+                           FontWeight="Normal"
+                           Foreground="{StaticResource CalendarInk}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                <Border x:Name="PreviewBadge" Grid.Row="2" DataContext="{Binding Preview}" Style="{StaticResource EntryBadge}"
+                        HorizontalAlignment="Center" VerticalAlignment="Center" Margin="7,0" ToolTip="{Binding Title}">
+                  <DockPanel>
+                    <TextBlock x:Name="MoreCount" DockPanel.Dock="Right" Margin="4,0,0,0"
+                               Text="{Binding DataContext.More, RelativeSource={RelativeSource AncestorType=ListBoxItem}}"
+                               Style="{StaticResource EntryText}" />
+                    <TextBlock Text="{Binding Preview}" Style="{StaticResource EntryText}"
+                               TextTrimming="CharacterEllipsis" />
+                  </DockPanel>
+                </Border>
+              </Grid>
               <DataTemplate.Triggers>
+                <DataTrigger Binding="{Binding Preview}" Value="{x:Null}">
+                  <Setter TargetName="PreviewBadge" Property="Visibility" Value="Collapsed" />
+                </DataTrigger>
+                <DataTrigger Binding="{Binding More}" Value="">
+                  <Setter TargetName="MoreCount" Property="Visibility" Value="Collapsed" />
+                </DataTrigger>
                 <DataTrigger Binding="{Binding IsToday}" Value="True">
-                  <Setter TargetName="TodayDot" Property="Visibility" Value="Visible" />
+                  <Setter TargetName="DayNumber" Property="FontWeight" Value="SemiBold" />
+                  <Setter TargetName="DayNumber" Property="Foreground" Value="#22675C" />
                 </DataTrigger>
               </DataTemplate.Triggers>
             </DataTemplate>
           </ListBox.ItemTemplate>
         </ListBox>
-        <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="4,6,0,0">
-          <Ellipse Width="9" Height="9" Fill="#8AB8A9" VerticalAlignment="Center" />
-          <TextBlock Text="开始" Foreground="{StaticResource CalendarMuted}" FontSize="12" Margin="5,0,16,0" />
-          <Ellipse Width="9" Height="9" Fill="#8CADDA" VerticalAlignment="Center" />
-          <TextBlock Text="截止" Foreground="{StaticResource CalendarMuted}" FontSize="12" Margin="5,0,16,0" />
-          <Ellipse Width="9" Height="9" Fill="#AEB9C5" VerticalAlignment="Center" />
-          <TextBlock Text="已完成" Foreground="{StaticResource CalendarMuted}" FontSize="12" Margin="5,0,0,0" />
-        </StackPanel>
+
+        <DockPanel Grid.Row="3" Margin="3,12,3,0">
+          <TextBlock x:Name="LoadError" DockPanel.Dock="Right" Text="读取事项失败，切回首页后会重试。"
+                     Foreground="#A23B27" FontSize="12" VerticalAlignment="Center" Visibility="Collapsed" />
+          <StackPanel Orientation="Horizontal">
+            <Rectangle Width="14" Height="14" RadiusX="5" RadiusY="5" Fill="{StaticResource StartBackground}" VerticalAlignment="Center" />
+            <TextBlock Text="开始" Foreground="{StaticResource CalendarMuted}" Margin="6,0,17,0" />
+            <Rectangle Width="14" Height="14" RadiusX="5" RadiusY="5" Fill="{StaticResource DeadlineBackground}" VerticalAlignment="Center" />
+            <TextBlock Text="截止" Foreground="{StaticResource CalendarMuted}" Margin="6,0,17,0" />
+            <Rectangle Width="14" Height="14" RadiusX="5" RadiusY="5" Fill="{StaticResource CompletedBackground}" VerticalAlignment="Center" />
+            <TextBlock Text="已完成" Foreground="{StaticResource CalendarMuted}" Margin="6,0,0,0" />
+          </StackPanel>
+        </DockPanel>
       </Grid>
     </Border>
-    <Border Grid.Column="2" Background="White" BorderBrush="#DEE6ED" BorderThickness="1" CornerRadius="14" Padding="16,15">
+
+    <Border x:Name="AgendaPanel" Visibility="Collapsed" HorizontalAlignment="Right" VerticalAlignment="Stretch"
+            Width="355" Margin="0,73,24,44" Background="White" BorderBrush="#DCE6E1" BorderThickness="1"
+            CornerRadius="14" Padding="16,13" KeyboardNavigation.TabNavigation="Cycle">
+      <Border.Effect>
+        <DropShadowEffect BlurRadius="26" ShadowDepth="4" Opacity="0.19" Color="#243E35" />
+      </Border.Effect>
       <Grid>
         <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
-        <StackPanel Margin="0,0,0,12">
-          <TextBlock x:Name="DayTitle" FontSize="18" FontWeight="Bold" AutomationProperties.AutomationId="CalendarSelectedDate" />
-          <TextBlock x:Name="DaySummary" Foreground="{StaticResource CalendarMuted}" FontSize="12" Margin="0,4,0,0" />
-          <TextBlock x:Name="LoadError" Text="读取事项失败，切回首页后会重试。" TextWrapping="Wrap"
-                     Foreground="#A23B27" FontSize="12" Margin="0,6,0,0" Visibility="Collapsed" />
-        </StackPanel>
+        <DockPanel Margin="0,0,0,10">
+          <Button x:Name="CloseAgendaButton" DockPanel.Dock="Right" Style="{StaticResource CalendarNav}"
+                  VerticalAlignment="Top" Click="CloseAgenda_Click" AutomationProperties.Name="关闭当天安排">
+            <Viewbox Width="15" Height="15">
+              <Canvas Width="24" Height="24">
+                <Path Data="{StaticResource IconClose}" Style="{StaticResource NavigationIcon}"
+                      Stroke="{Binding Foreground, ElementName=CloseAgendaButton}" />
+              </Canvas>
+            </Viewbox>
+          </Button>
+          <StackPanel>
+            <TextBlock x:Name="DayTitle" FontSize="19" FontWeight="SemiBold" Foreground="{StaticResource CalendarInk}"
+                       AutomationProperties.AutomationId="CalendarSelectedDate" />
+            <TextBlock x:Name="DaySummary" Foreground="{StaticResource CalendarMuted}" FontSize="12" Margin="0,4,0,0" />
+          </StackPanel>
+        </DockPanel>
         <TextBlock x:Name="EmptyDay" Grid.Row="1" Foreground="{StaticResource CalendarMuted}" TextWrapping="Wrap" />
-        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+        <ScrollViewer x:Name="AgendaScroll" Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
           <ItemsControl x:Name="Agenda" AutomationProperties.AutomationId="CalendarAgenda">
             <ItemsControl.ItemTemplate>
               <DataTemplate>
@@ -222,7 +272,7 @@
                     </WrapPanel>
                     <Button Click="AgendaItem_Click" AutomationProperties.Name="{Binding Title}" ToolTip="打开事项详情">
                       <Button.Style>
-                        <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+                        <Style TargetType="Button" BasedOn="{StaticResource NavigationButton}">
                           <Setter Property="Background" Value="Transparent" />
                           <Setter Property="Margin" Value="0" />
                           <Setter Property="Padding" Value="0,2" />

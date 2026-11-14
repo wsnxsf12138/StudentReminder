@@ -20,8 +20,8 @@ internal sealed record CalendarDay(DateOnly? Date, bool IsInMonth, bool IsToday,
     public string Label => Date is { } date
         ? $"{date:yyyy年M月d日}，{(Entries.Count == 0 ? "无安排" : $"{Entries.Count} 条安排")}"
         : "";
-    public IReadOnlyList<CalendarEntry> Preview => Entries.Take(2).ToArray();
-    public string More => Entries.Count > 2 ? $"+{Entries.Count - 2} 条" : "";
+    public CalendarEntry? Preview => Entries.FirstOrDefault(entry => !entry.IsCompleted) ?? Entries.FirstOrDefault();
+    public string More => Entries.Count > 1 ? $"+{Entries.Count - 1}" : "";
 }
 
 internal static class ReminderCalendar
@@ -38,7 +38,9 @@ internal static class ReminderCalendar
     {
         var first = new DateOnly(month.Year, month.Month, 1);
         var mondayOffset = ((int)first.DayOfWeek + 6) % 7;
-        return Enumerable.Range(first.DayNumber - mondayOffset, 42).Select(number =>
+        var daysInMonth = DateTime.DaysInMonth(first.Year, first.Month);
+        var weeks = (mondayOffset + daysInMonth + 6) / 7;
+        return Enumerable.Range(first.DayNumber - mondayOffset, weeks * 7).Select(number =>
         {
             if (number < 0 || number > DateOnly.MaxValue.DayNumber) return new CalendarDay(null, false, false, []);
             var date = DateOnly.FromDayNumber(number);

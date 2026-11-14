@@ -4,6 +4,7 @@ using System.IO;
 using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using System.Windows.Threading;
 using Microsoft.Win32;
 using StudentReminder.Core;
@@ -93,6 +94,11 @@ public partial class MainWindow : Window
     private async void HomeTabs_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         if (e.Source == HomeTabs && HomeTabs.SelectedItem == CalendarTab) await RefreshCalendarAsync();
+    }
+
+    private void Window_PreviewKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+    {
+        if (e.Key == Key.Escape && CalendarView.TryCloseAgenda()) e.Handled = true;
     }
 
     private async Task RefreshCalendarAsync()

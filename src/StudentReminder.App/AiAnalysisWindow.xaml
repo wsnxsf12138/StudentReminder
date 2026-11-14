@@ -11,8 +11,8 @@
       <RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/>
     </Grid.RowDefinitions>
     <TextBlock Text="AI 分析" FontSize="25" FontWeight="Bold" Margin="0,0,0,12"/>
-    <TabControl x:Name="AnalysisTabs" Grid.Row="1" IsEnabled="False">
-      <TabItem Header="模型设置" AutomationProperties.AutomationId="AiModelSettings">
+    <TabControl x:Name="AnalysisTabs" Grid.Row="1" IsEnabled="False" Style="{StaticResource NavigationTabs}">
+      <TabItem Header="模型设置" Tag="{StaticResource IconSliders}" AutomationProperties.AutomationId="AiModelSettings">
         <Grid Margin="14">
           <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
           <Border Background="White" BorderBrush="#DEE6ED" BorderThickness="1" CornerRadius="10"
@@ -20,8 +20,10 @@
             <StackPanel>
               <DockPanel Margin="0,0,0,12">
                 <WrapPanel DockPanel.Dock="Right" HorizontalAlignment="Right">
-                  <Button Content="测试连接" Click="Test_Click" Padding="12,6" AutomationProperties.AutomationId="TestAiConnection"/>
-                  <Button Content="保存配置" Click="Save_Click" Padding="12,6" Margin="0" AutomationProperties.AutomationId="SaveAiProfile"/>
+                  <Button Content="测试连接" Click="Test_Click" Style="{StaticResource NavigationActionButton}"
+                          Tag="{StaticResource IconConnection}" AutomationProperties.AutomationId="TestAiConnection"/>
+                  <Button Content="保存配置" Click="Save_Click" Style="{StaticResource NavigationActionButton}" Margin="0"
+                          Tag="{StaticResource IconCheck}" AutomationProperties.AutomationId="SaveAiProfile"/>
                 </WrapPanel>
                 <TextBlock Text="服务商配置" FontSize="17" FontWeight="Bold" VerticalAlignment="Center"/>
               </DockPanel>
@@ -51,7 +53,8 @@
                 <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/>
               </Grid.RowDefinitions>
               <DockPanel Margin="0,0,0,8">
-                <Button DockPanel.Dock="Right" Content="获取模型列表" Click="FetchModels_Click" Margin="0" Padding="12,6"
+                <Button DockPanel.Dock="Right" Content="获取模型列表" Click="FetchModels_Click" Margin="0"
+                        Style="{StaticResource NavigationActionButton}" Tag="{StaticResource IconDownload}"
                         ToolTip="使用当前服务商的 API Key 查询模型列表"
                         AutomationProperties.AutomationId="FetchAiModels"/>
                 <TextBlock Text="模型" FontSize="17" FontWeight="Bold" VerticalAlignment="Center"/>
@@ -83,7 +86,7 @@
           </Border>
         </Grid>
       </TabItem>
-      <TabItem Header="本地初筛">
+      <TabItem Header="本地初筛" Tag="{StaticResource IconFilter}">
         <Border Margin="14" Background="White" BorderBrush="#DEE6ED" BorderThickness="1" CornerRadius="10" Padding="16">
           <StackPanel>
             <CheckBox x:Name="HybridEnabled" Content="自动分析时启用本地初筛" Margin="0,0,0,10"
@@ -114,7 +117,7 @@
           </StackPanel>
         </Border>
       </TabItem>
-      <TabItem Header="本地直读自动分析">
+      <TabItem Header="本地直读自动分析" Tag="{StaticResource IconBolt}">
         <DockPanel Margin="14">
           <TextBlock DockPanel.Dock="Top" Text="从已授权采集的会话中勾选分析范围。开启后只发送新收到且在开启后发出的相关文本，旧消息可到「历史消息」补分析。" TextWrapping="Wrap" Margin="0,0,0,9"/>
           <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Margin="0,10,0,0">
@@ -130,7 +133,7 @@
           </ListBox>
         </DockPanel>
       </TabItem>
-      <TabItem Header="历史消息">
+      <TabItem Header="历史消息" Tag="{StaticResource IconHistory}">
         <Grid Margin="14">
           <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="96"/><RowDefinition Height="Auto"/>

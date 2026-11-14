@@ -1,5 +1,5 @@
 ﻿AI 学生事务助理 — 第三方声明
-适用版本 0.6.10-alpha，Windows x64 自包含便携包。
+适用版本 0.6.11-alpha，Windows x64 自包含便携包。
 
 分发说明
 本项目按 GPL-3.0 发布，见 LICENSE。对应源码与构建步骤见 source/SOURCE-README.txt。

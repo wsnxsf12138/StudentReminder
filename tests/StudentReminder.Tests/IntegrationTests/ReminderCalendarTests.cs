@@ -59,8 +59,23 @@ public sealed class ReminderCalendarTests
             entry => Assert.True(entry.IsCompleted),
             entry => Assert.False(entry.IsDeadline),
             entry => Assert.True(entry.IsDeadline));
-        Assert.Equal(2, tile.Preview.Count);
-        Assert.Equal("+1 条", tile.More);
+        Assert.Equal(scheduled.Id, tile.Preview?.Event.Id);
+        Assert.Equal("+2", tile.More);
+    }
+
+    [Theory]
+    [InlineData(2026, 10, 35)]
+    [InlineData(2027, 2, 28)]
+    public void CalendarUsesOnlyTheWeeksNeededForTheMonth(int year, int month, int cellCount)
+    {
+        var day = new DateOnly(year, month, 1);
+        var empty = ReminderCalendar.Index([], TimeZoneInfo.Utc);
+        var days = ReminderCalendar.BuildMonth(day, day, empty);
+
+        Assert.Equal(cellCount, days.Count);
+        Assert.Equal(DayOfWeek.Monday, days[0].Date?.DayOfWeek);
+        Assert.Equal(DayOfWeek.Sunday, days[^1].Date?.DayOfWeek);
+        Assert.Equal(DateTime.DaysInMonth(year, month), days.Count(item => item.IsInMonth));
     }
 
     private static ReviewedEvent Event(string id) =>
