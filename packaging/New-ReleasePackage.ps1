@@ -9,6 +9,9 @@ param(
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
+# Windows 5.1 用控制台代码页解码原生命令输出，git 返回的 UTF-8 路径需要显式设置，
+# 否则中文文件名会变成乱码并触发下面的文件白名单检查。
+[Console]::OutputEncoding = [Text.UTF8Encoding]::new($false)
 if (Test-Path Variable:PSNativeCommandUseErrorActionPreference) {
     $PSNativeCommandUseErrorActionPreference = $false
 }
