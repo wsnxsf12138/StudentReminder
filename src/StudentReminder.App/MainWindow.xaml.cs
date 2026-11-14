@@ -40,6 +40,7 @@ public partial class MainWindow : Window
     private bool shutdownReady;
     private bool explicitExit;
     private bool initialized;
+    private int calendarRead;
 
     public MainWindow(SqliteMessageRepository repository, ManualImportService importer, AppLog log, DirectReadCache cache,
         ISourceTokenStore sourceTokens, ISourceAdapterFactory adapterFactory, SyncCoordinator coordinator, bool defaultDataDirectory)
@@ -52,6 +53,8 @@ public partial class MainWindow : Window
         this.sourceTokens = sourceTokens; this.adapterFactory = adapterFactory; this.coordinator = coordinator;
         InitializeComponent();
         Closing += MainWindow_Closing;
+        CalendarView.OpenEvent += id => ShowReview(id, isCandidate: false);
+        Activated += async (_, _) => await RefreshCalendarAsync();
         StateChanged += (_, _) =>
         {
             if (WindowState == WindowState.Minimized && desktop is not null) HideToTray();
@@ -81,9 +84,33 @@ public partial class MainWindow : Window
                 TodayButton.IsEnabled = SettingsButton.IsEnabled = true;
             initialized = true;
             log.Write(Operation.Startup);
-            StatusLabel.Text = "本地存储已就绪。可以粘贴消息、导入 JSON 或体验合成样本。";
+            StatusLabel.Text = "本地存储已就绪。";
+            await RefreshCalendarAsync();
         });
         return initialized || lifetime.IsCancellationRequested;
+    }
+
+    private async void HomeTabs_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (e.Source == HomeTabs && HomeTabs.SelectedItem == CalendarTab) await RefreshCalendarAsync();
+    }
+
+    private async Task RefreshCalendarAsync()
+    {
+        if (!initialized || closing || !IsVisible || HomeTabs.SelectedItem != CalendarTab) return;
+        var read = ++calendarRead;
+        var ct = lifetime.Token;
+        try
+        {
+            var events = await Task.Run(() => repository.ReadEventsAsync(ct), ct);
+            if (read == calendarRead && !ct.IsCancellationRequested) CalendarView.SetEvents(events);
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested) { }
+        catch (Exception error)
+        {
+            log.Write(Operation.Failure, errorType: error.GetType().Name);
+            if (read == calendarRead && !ct.IsCancellationRequested) CalendarView.ShowLoadError();
+        }
     }
 
     private async void Sample_Click(object sender, RoutedEventArgs e) => await ImportAsync(() =>
@@ -225,7 +252,10 @@ public partial class MainWindow : Window
     {
         if (closing) return;
         if (reviewWindow?.IsLoaded != true)
+        {
             reviewWindow = new EventReviewWindow(repository) { Owner = this };
+            reviewWindow.EventsChanged += async () => await RefreshCalendarAsync();
+        }
         var window = reviewWindow;
         ShowWindow(window);
         if (id is not null) await window.NavigateAsync(id, isCandidate);
@@ -255,6 +285,7 @@ public partial class MainWindow : Window
 
     private async void RefreshToday()
     {
+        CalendarView.RefreshTodayMarker();
         if (todayWindow is { IsVisible: true } window) await window.RefreshCachedAsync();
     }
 

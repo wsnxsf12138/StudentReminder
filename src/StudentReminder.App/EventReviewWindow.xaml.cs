@@ -20,6 +20,7 @@ public partial class EventReviewWindow : Window
     private int selectionGeneration;
     private EventCandidate? linkDefaults;
     private (string Id, bool Candidate)? navigation;
+    internal event Action? EventsChanged;
 
     public EventReviewWindow(SqliteMessageRepository repository)
     {
@@ -267,6 +268,7 @@ public partial class EventReviewWindow : Window
         var target = (LinkBox.SelectedItem as LinkChoice)?.Event;
         var draft = target is not null && candidate.ChangeKind is ("new" or "cancel") ? target.Details : ReadDraft(candidate.Draft);
         var eventId = await Task.Run(() => repository.ConfirmCandidateAsync(candidate.Id, draft, target?.Id, target?.Version, lifetime.Token));
+        EventsChanged?.Invoke();
         if (!lifetime.IsCancellationRequested)
         {
             ViewBox.SelectedIndex = 2;
@@ -295,6 +297,7 @@ public partial class EventReviewWindow : Window
         if (SelectedRow?.Event is not { } item || (operation == "delete" && !ConfirmDeletion("事项"))) return;
         var draft = operation == "edit" ? ReadDraft(item.Details) : null;
         await Task.Run(() => repository.UpdateEventAsync(item.Id, item.Version, operation, draft, lifetime.Token));
+        EventsChanged?.Invoke();
         await ReloadAsync(item.Id);
         ReviewStatus.Text = operation switch { "edit" => "已保存新版本。", "complete" => "已标记完成。", _ => "事项已删除。" };
     });

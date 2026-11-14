@@ -2,7 +2,7 @@
 [CmdletBinding()]
 param(
     [ValidatePattern('^[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z]+(?:[.-][0-9A-Za-z]+)*)?$')]
-    [string]$Version = '0.6.9-alpha',
+    [string]$Version = '0.6.10-alpha',
     [switch]$IncludeModels,
     [string]$OutputRoot = 'artifacts/release'
 )

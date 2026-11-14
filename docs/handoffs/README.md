@@ -26,6 +26,7 @@
 | 0.6.7-alpha | [v0.6.7-alpha](v0.6.7-alpha.md) | QqLocal 群系统消息识别与发送者昵称快照兜底 |
 | 0.6.8-alpha | [v0.6.8-alpha](v0.6.8-alpha.md) | QqLocal 私聊名称与 QQ 公众号识别（ISSUE-02） |
 | 0.6.9-alpha | [v0.6.9-alpha](v0.6.9-alpha.md) | Windows 应用、系统托盘和界面状态图标（P4-02、P4-04、P4-05） |
+| 0.6.10-alpha | [v0.6.10-alpha](v0.6.10-alpha.md) | 首页事项日历、当天安排与详情跳转（P4-04） |
 
 ## 遗留问题
 
