@@ -346,6 +346,12 @@ public partial class EventReviewWindow : Window
         public string Title => Draft.Title;
         public string Category => ReviewLabels.Category(Draft.Category);
         public string Status => ReviewLabels.Status(Candidate?.Status ?? Event!.Status);
+        public StatusGlyph Glyph => (Candidate?.Status ?? Event!.Status) switch
+        {
+            "pending" => StatusGlyph.PendingReview,
+            "completed" => StatusGlyph.Completed,
+            _ => StatusGlyph.None
+        };
     }
 
     private sealed record CategoryChoice(string Value)

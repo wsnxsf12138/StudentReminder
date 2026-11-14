@@ -1,4 +1,5 @@
 <Window x:Class="StudentReminder.App.SourcesWindow"
+        Style="{StaticResource AppWindow}"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="消息来源 · 学生事务助理" Width="1180" Height="760" MinWidth="1080" MinHeight="700"
@@ -73,7 +74,10 @@
       </Border>
     </Grid>
     <StackPanel Grid.Row="2" Margin="0,16,0,0">
-      <TextBlock x:Name="HealthLabel" Text="最近成功同步：尚无记录" Foreground="#64748B" TextWrapping="Wrap"/>
+      <DockPanel>
+        <Image x:Name="HealthIcon" Style="{StaticResource StatusIcon}" DockPanel.Dock="Left"/>
+        <TextBlock x:Name="HealthLabel" Text="最近成功同步：尚无记录" Foreground="#64748B" TextWrapping="Wrap"/>
+      </DockPanel>
       <TextBlock x:Name="StatusLabel" Text="保存配置不会发出网络请求；首次读取会话后默认全部不选。" Foreground="#0F766E" TextWrapping="Wrap" Margin="0,8,0,0" AutomationProperties.AutomationId="SourceStatus"/>
     </StackPanel>
   </Grid>

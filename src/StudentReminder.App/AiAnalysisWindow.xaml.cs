@@ -64,6 +64,7 @@ public partial class AiAnalysisWindow : Window
             BatchCountBox.Text = batch.Count.ToString(CultureInfo.InvariantCulture);
             BatchWaitBox.Text = batch.WaitSeconds.ToString(CultureInfo.InvariantCulture);
             await LoadScopesAsync(ct);
+            RunStatusIcon.Tag = StatusGlyph.Paused;
         });
         if (!IsLoaded) return;
         statsTimer.Tick += StatsTimer_Tick;
@@ -397,7 +398,8 @@ public partial class AiAnalysisWindow : Window
         DockPanel.SetDock(actions, Dock.Bottom);
         layout.Children.Add(actions);
         var dialog = new Window { Owner = this, Title = "联合分析出站预览", Width = 720, Height = 465,
-            WindowStartupLocation = WindowStartupLocation.CenterOwner, Content = layout, FontFamily = FontFamily, FontSize = FontSize };
+            Icon = Icon, WindowStartupLocation = WindowStartupLocation.CenterOwner, Content = layout,
+            FontFamily = FontFamily, FontSize = FontSize };
         var send = new Button { Content = "确认发送" };
         send.Click += (_, _) => dialog.DialogResult = true;
         actions.Children.Add(send);
@@ -416,6 +418,7 @@ public partial class AiAnalysisWindow : Window
     private async Task RunAsync(Func<CancellationToken, Task> action)
     {
         if (operation is not null || sourceChanging || lifetime.IsCancellationRequested) return;
+        RunStatusIcon.Tag = StatusGlyph.None;
         using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token);
         operationCancellation = cancellation;
         operation = ExecuteAsync(action, cancellation.Token);
@@ -440,9 +443,17 @@ public partial class AiAnalysisWindow : Window
             await action(ct);
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested) { }
-        catch (AiFailureException error) { RunStatus.Text = AiFailureException.Describe(error.Code) + " 分析已暂停。"; }
+        catch (AiFailureException error)
+        {
+            RunStatusIcon.Tag = StatusGlyph.Failure;
+            RunStatus.Text = AiFailureException.Describe(error.Code) + " 分析已暂停。";
+        }
         catch (ArgumentException error) { RunStatus.Text = error.Message; }
-        catch (Exception) { RunStatus.Text = "操作未完成，请检查本地数据库或凭据。分析已暂停。"; }
+        catch (Exception)
+        {
+            RunStatusIcon.Tag = StatusGlyph.Failure;
+            RunStatus.Text = "操作未完成，请检查本地数据库或凭据。分析已暂停。";
+        }
     }
 
     private void SetControls()
@@ -462,6 +473,7 @@ public partial class AiAnalysisWindow : Window
     {
         PauseButton.IsEnabled = false;
         await CancelOperationAsync();
+        RunStatusIcon.Tag = StatusGlyph.Paused;
         RunStatus.Text = "分析已暂停。";
     }
 
@@ -476,7 +488,11 @@ public partial class AiAnalysisWindow : Window
     {
         sourceChanging = false;
         RunStatus.Text = "来源设置已更新，分析已暂停。";
-        await RunAsync(LoadScopesAsync);
+        await RunAsync(async ct =>
+        {
+            await LoadScopesAsync(ct);
+            RunStatusIcon.Tag = StatusGlyph.Paused;
+        });
     }
 
     private async void StatsTimer_Tick(object? sender, EventArgs e) => await RefreshStatsAsync();
@@ -528,6 +544,7 @@ public partial class AiAnalysisWindow : Window
         public bool CanSend => Preview.Work.Status is not ("empty" or "extracted");
         public string Snippet => Preview.OutboundText.Replace('\n', ' ').Replace('\r', ' ');
         public string Time => Preview.Work.Message.LocalSentAt.ToString("yyyy-MM-dd HH:mm");
+        public StatusGlyph Glyph => Preview.Work.Status is "retry" or "failed" ? StatusGlyph.Failure : StatusGlyph.None;
         public string Status => Preview.Work.Status switch
         {
             "filtered" when Preview.Work.ErrorCode == "local_filtered" => "本地初筛跳过",

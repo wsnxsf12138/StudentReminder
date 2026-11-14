@@ -203,7 +203,19 @@
         "dependencies": {
           "LLamaSharp": "[0.30.0, )",
           "LLamaSharp.Backend.Cpu": "[0.30.0, )",
-          "StudentReminder.Core": "[0.6.7-alpha, )"
+          "StudentReminder.Core": "[0.6.9-alpha, )"
+        }
+      },
+      "studentreminder.app": {
+        "type": "Project",
+        "dependencies": {
+          "StudentReminder.AI": "[0.6.9-alpha, )",
+          "StudentReminder.Core": "[0.6.9-alpha, )",
+          "StudentReminder.Data": "[0.6.9-alpha, )",
+          "StudentReminder.Ingestion": "[0.6.9-alpha, )",
+          "StudentReminder.Notifications": "[0.6.9-alpha, )",
+          "StudentReminder.QqLocal.Adapter": "[0.6.9-alpha, )",
+          "StudentReminder.WxLocal.Adapter": "[0.6.9-alpha, )"
         }
       },
       "studentreminder.core": {
@@ -213,19 +225,19 @@
         "type": "Project",
         "dependencies": {
           "Microsoft.Data.Sqlite": "[10.0.14, )",
-          "StudentReminder.Core": "[0.6.7-alpha, )"
+          "StudentReminder.Core": "[0.6.9-alpha, )"
         }
       },
       "studentreminder.ingestion": {
         "type": "Project",
         "dependencies": {
-          "StudentReminder.Core": "[0.6.7-alpha, )"
+          "StudentReminder.Core": "[0.6.9-alpha, )"
         }
       },
       "studentreminder.notifications": {
         "type": "Project",
         "dependencies": {
-          "StudentReminder.Core": "[0.6.7-alpha, )"
+          "StudentReminder.Core": "[0.6.9-alpha, )"
         }
       },
       "studentreminder.qqlocal": {
@@ -238,9 +250,9 @@
       "studentreminder.qqlocal.adapter": {
         "type": "Project",
         "dependencies": {
-          "StudentReminder.Core": "[0.6.7-alpha, )",
-          "StudentReminder.Ingestion": "[0.6.7-alpha, )",
-          "StudentReminder.QqLocal": "[0.6.7-alpha, )"
+          "StudentReminder.Core": "[0.6.9-alpha, )",
+          "StudentReminder.Ingestion": "[0.6.9-alpha, )",
+          "StudentReminder.QqLocal": "[0.6.9-alpha, )"
         }
       },
       "studentreminder.wxlocal": {
@@ -254,9 +266,9 @@
       "studentreminder.wxlocal.adapter": {
         "type": "Project",
         "dependencies": {
-          "StudentReminder.Core": "[0.6.7-alpha, )",
-          "StudentReminder.Ingestion": "[0.6.7-alpha, )",
-          "StudentReminder.WxLocal": "[0.6.7-alpha, )"
+          "StudentReminder.Core": "[0.6.9-alpha, )",
+          "StudentReminder.Ingestion": "[0.6.9-alpha, )",
+          "StudentReminder.WxLocal": "[0.6.9-alpha, )"
         }
       }
     }

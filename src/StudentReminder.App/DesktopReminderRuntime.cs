@@ -1,9 +1,11 @@
+using System.Windows;
 using System.Windows.Threading;
 using Microsoft.Win32;
 using StudentReminder.Core;
 using StudentReminder.Data;
 using StudentReminder.Notifications;
 using Forms = System.Windows.Forms;
+using Icon = System.Drawing.Icon;
 
 namespace StudentReminder.App;
 
@@ -12,6 +14,8 @@ internal sealed class DesktopReminderRuntime : IReminderNotification, IAsyncDisp
     private readonly Dispatcher dispatcher;
     private readonly DispatcherTimer timer;
     private readonly Forms.NotifyIcon icon;
+    private readonly Dictionary<TrayIcon, Icon> trayIcons;
+    private readonly TrayStatus trayStatus = new();
     private readonly Forms.ContextMenuStrip menu;
     private readonly SqliteMessageRepository store;
     private readonly ReminderDispatcher reminders;
@@ -26,7 +30,8 @@ internal sealed class DesktopReminderRuntime : IReminderNotification, IAsyncDisp
     private DateTimeOffset? lastCheck;
 
     public DesktopReminderRuntime(Dispatcher dispatcher, SqliteMessageRepository store, AppLog log,
-        Action showToday, Action pause, Action exit, Action refreshToday)
+        Action showToday, Action showMissedReminders, Action<string> showSource,
+        Action pause, Action exit, Action refreshToday)
     {
         this.dispatcher = dispatcher;
         this.store = store;
@@ -37,21 +42,59 @@ internal sealed class DesktopReminderRuntime : IReminderNotification, IAsyncDisp
         menu.Items.Add("打开今日", null, (_, _) => dispatcher.BeginInvoke(showToday));
         menu.Items.Add("暂停采集", null, (_, _) => dispatcher.BeginInvoke(pause));
         menu.Items.Add("退出", null, (_, _) => dispatcher.BeginInvoke(exit));
+        trayIcons = Enum.GetValues<TrayIcon>().ToDictionary(state => state, LoadTrayIcon);
         icon = new Forms.NotifyIcon
         {
-            Text = "学生事务助理",
-            Icon = System.Drawing.SystemIcons.Information,
+            Text = trayStatus.ToolTip,
+            Icon = trayIcons[TrayIcon.Ready],
             ContextMenuStrip = menu,
             Visible = true
         };
-        icon.DoubleClick += (_, _) => dispatcher.BeginInvoke(showToday);
-        icon.BalloonTipClicked += (_, _) => dispatcher.BeginInvoke(showToday);
+        icon.DoubleClick += (_, _) => dispatcher.BeginInvoke(() =>
+        {
+            if (lifetime.IsCancellationRequested) return;
+            if (trayStatus.HasUnviewedReminders) showMissedReminders();
+            else if (trayStatus.SourceNeedingAttention is { } id) showSource(id);
+            else showToday();
+        });
+        icon.BalloonTipClicked += (_, _) => dispatcher.BeginInvoke(() =>
+        {
+            if (lifetime.IsCancellationRequested) return;
+            if (trayStatus.HasUnviewedReminders) showMissedReminders();
+            else showToday();
+        });
         timer = new DispatcherTimer(DispatcherPriority.Background, dispatcher) { Interval = TimeSpan.FromSeconds(5) };
         timer.Tick += Tick;
         SystemEvents.PowerModeChanged += PowerChanged;
         SystemEvents.TimeChanged += TimeChanged;
         timer.Start();
         RequestCheck();
+    }
+
+    private static Icon LoadTrayIcon(TrayIcon state)
+    {
+        var name = state.ToString().ToLowerInvariant();
+        var uri = new Uri($"pack://application:,,,/StudentReminder.App;component/Assets/Icons/tray-{name}.ico");
+        using var stream = Application.GetResourceStream(uri).Stream;
+        using var resourceIcon = new Icon(stream, Forms.SystemInformation.SmallIconSize);
+        return (Icon)resourceIcon.Clone();
+    }
+
+    public long ReminderVersion => trayStatus.ReminderVersion;
+
+    public void ViewReminders(long version)
+    {
+        if (lifetime.IsCancellationRequested) return;
+        trayStatus.ViewReminders(version);
+        UpdateTrayIcon();
+    }
+
+    private void UpdateTrayIcon()
+    {
+        var image = trayIcons[trayStatus.Icon];
+        if (icon.Icon != image) icon.Icon = image;
+        var toolTip = trayStatus.ToolTip;
+        if (icon.Text != toolTip) icon.Text = toolTip;
     }
 
     public void RequestCheck()
@@ -95,6 +138,16 @@ internal sealed class DesktopReminderRuntime : IReminderNotification, IAsyncDisp
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested) { }
         catch (Exception error) { log.Write(Operation.Failure, errorType: error.GetType().Name); }
+
+        try
+        {
+            var sources = await Task.Run(() => store.ReadSourcesAsync(ct), ct);
+            if (ct.IsCancellationRequested) return;
+            trayStatus.UpdateSources(sources);
+            UpdateTrayIcon();
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested) { }
+        catch (Exception error) { log.Write(Operation.Failure, errorType: error.GetType().Name); }
     }
 
     private void Tick(object? sender, EventArgs e) => RequestCheck();
@@ -121,6 +174,11 @@ internal sealed class DesktopReminderRuntime : IReminderNotification, IAsyncDisp
     {
         await dispatcher.InvokeAsync(() =>
         {
+            if (batch.NewlyMissed > 0)
+            {
+                trayStatus.ReportMissedReminders();
+                UpdateTrayIcon();
+            }
             if (suspended) throw new InvalidOperationException("系统正在休眠。");
             var lines = new List<string>();
             if (batch.Due.Count > 0)
@@ -153,6 +211,7 @@ internal sealed class DesktopReminderRuntime : IReminderNotification, IAsyncDisp
         if (running is not null) await running;
         icon.Visible = false;
         icon.Dispose();
+        foreach (var image in trayIcons.Values) image.Dispose();
         menu.Dispose();
         lifetime.Dispose();
     }

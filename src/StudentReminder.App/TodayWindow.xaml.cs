@@ -12,22 +12,29 @@ public partial class TodayWindow : Window
     private readonly SqliteMessageRepository store;
     private readonly ISourceTokenStore tokens;
     private readonly Action<string, bool> openReview;
+    private readonly Func<long> reminderVersion;
+    private readonly Action<long> viewReminders;
     private readonly CancellationTokenSource lifetime = new();
     private CancellationTokenSource? polishCancellation;
     private Task? polish;
     private DailyDigest? digest;
     private SectionView? highlights;
     private bool loading;
+    private bool refreshPending;
     private bool ready;
     private bool requestsBlocked;
 
-    internal TodayWindow(SqliteMessageRepository store, ISourceTokenStore tokens, Action<string, bool> openReview)
+    internal TodayWindow(SqliteMessageRepository store, ISourceTokenStore tokens, Action<string, bool> openReview,
+        Func<long> reminderVersion, Action<long> viewReminders)
     {
         this.store = store;
         this.tokens = tokens;
         this.openReview = openReview;
+        this.reminderVersion = reminderVersion;
+        this.viewReminders = viewReminders;
         InitializeComponent();
         Closing += Window_Closing;
+        Activated += async (_, _) => await RefreshVisibleMissedRemindersAsync();
     }
 
     private async void Window_Loaded(object sender, RoutedEventArgs e)
@@ -38,7 +45,21 @@ public partial class TodayWindow : Window
     }
 
     public Task RefreshCachedAsync() => ready ? LoadAsync(force: false) : Task.CompletedTask;
+
     public Task RefreshForOpenAsync() => ready ? LoadAsync(force: true) : Task.CompletedTask;
+
+    internal void SelectMissedReminders() => Tabs.SelectedItem = MissedTab;
+
+    private async void Tabs_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (e.Source == Tabs) await RefreshVisibleMissedRemindersAsync();
+    }
+
+    private bool IsViewingMissedReminders =>
+        IsActive && WindowState != WindowState.Minimized && Tabs.SelectedItem == MissedTab;
+
+    private Task RefreshVisibleMissedRemindersAsync() =>
+        ready && IsViewingMissedReminders ? LoadAsync(force: false) : Task.CompletedTask;
 
     private async void Refresh_Click(object sender, RoutedEventArgs e)
     {
@@ -47,7 +68,12 @@ public partial class TodayWindow : Window
 
     private async Task LoadAsync(bool force)
     {
-        if (loading || lifetime.IsCancellationRequested) return;
+        if (lifetime.IsCancellationRequested) return;
+        if (loading)
+        {
+            refreshPending = true;
+            return;
+        }
         loading = true;
         SetControls();
         try
@@ -55,6 +81,7 @@ public partial class TodayWindow : Window
             var now = DateTimeOffset.UtcNow;
             var zone = TimeZoneInfo.Local;
             var ct = lifetime.Token;
+            var version = reminderVersion();
             var loaded = await Task.Run(async () =>
             {
                 var cached = force ? null : await store.ReadDailyDigestAsync(DigestCalendar.Day(now, zone), ct);
@@ -70,13 +97,23 @@ public partial class TodayWindow : Window
             }
             Missed.ItemsSource = loaded.Missed.Select(item => new LinkRow(item.EventId, false,
                 $"{item.FireAt.ToLocalTime():MM-dd HH:mm zzz} · {(item.Rule.StartsWith("start:", StringComparison.Ordinal) ? "开始提醒" : "截止提醒")} · " +
-                $"{item.Title} · {MissedStatus(item.Status)}")).ToArray();
+                $"{item.Title} · {MissedStatus(item.Status)}", StatusGlyph.Failure)).ToArray();
             MissedCaption.Text = loaded.Missed.Count == 0 ? "暂无错过的提醒。" : $"共 {loaded.Missed.Count} 条，显示原计划时间。";
+            if (IsViewingMissedReminders) viewReminders(version);
             if (force) StatusLabel.Text = "已刷新本地摘要。";
         }
         catch (OperationCanceledException) when (lifetime.IsCancellationRequested) { }
         catch (Exception) { StatusLabel.Text = "暂时无法读取本地摘要或提醒，请刷新重试。"; }
-        finally { loading = false; SetControls(); }
+        finally
+        {
+            loading = false;
+            SetControls();
+            if (refreshPending)
+            {
+                refreshPending = false;
+                _ = LoadAsync(force: false);
+            }
+        }
     }
 
     private void RenderDigest()
@@ -85,7 +122,8 @@ public partial class TodayWindow : Window
         GeneratedLabel.Text = $"{digest.Date:yyyy-MM-dd} · {digest.GeneratedAt.ToLocalTime():HH:mm} 生成";
         var groups = digest.Sections.Select(section => new SectionView(section.Title,
             section.Entries.Count == 0 ? [new(null, false, "暂无")] :
-            section.Entries.Select(item => new LinkRow(item.Id, item.IsCandidate, Format(item))).ToArray()));
+            section.Entries.Select(item => new LinkRow(item.Id, item.IsCandidate, Format(item),
+                section.Title == "未来 72 小时截止" ? StatusGlyph.Reminder : StatusGlyph.None)).ToArray()));
         Sections.ItemsSource = highlights is { } header ? groups.Prepend(header).ToArray() : groups.ToArray();
     }
 
@@ -174,7 +212,7 @@ public partial class TodayWindow : Window
         var layout = new DockPanel { Margin = new(20) };
         var dialog = new Window
         {
-            Owner = this, Title = "预览摘要润色内容", Width = 700, Height = 420, WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            Owner = this, Icon = Icon, Title = "预览摘要润色内容", Width = 700, Height = 420, WindowStartupLocation = WindowStartupLocation.CenterOwner,
             FontFamily = FontFamily, FontSize = FontSize, Content = layout
         };
         var heading = new TextBlock { Text = $"发送给 {provider} 的事项数据", TextWrapping = TextWrapping.Wrap, Margin = new(0, 0, 0, 10) };
@@ -257,7 +295,7 @@ public partial class TodayWindow : Window
     private void Window_Closed(object? sender, EventArgs e) => lifetime.Cancel();
 
     private sealed record SectionView(string Title, IReadOnlyList<LinkRow> Rows);
-    private sealed record LinkRow(string? Id, bool IsCandidate, string Text)
+    private sealed record LinkRow(string? Id, bool IsCandidate, string Text, StatusGlyph Glyph = StatusGlyph.None)
     {
         public Visibility LinkVisibility => Id is null ? Visibility.Collapsed : Visibility.Visible;
     }

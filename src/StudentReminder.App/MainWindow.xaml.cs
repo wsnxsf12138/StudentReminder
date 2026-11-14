@@ -75,7 +75,8 @@ public partial class MainWindow : Window
             lifetime.Token.ThrowIfCancellationRequested();
             await ReloadAsync();
             lifetime.Token.ThrowIfCancellationRequested();
-            desktop = new DesktopReminderRuntime(Dispatcher, repository, log, ShowToday, PauseFromTray, ExitFromTray, RefreshToday);
+            desktop = new DesktopReminderRuntime(Dispatcher, repository, log, ShowToday, ShowMissedReminders,
+                ShowSourceNeedingAttention, PauseFromTray, ExitFromTray, RefreshToday);
             SourcesButton.IsEnabled = MoectButton.IsEnabled = AiButton.IsEnabled = ReviewButton.IsEnabled =
                 TodayButton.IsEnabled = SettingsButton.IsEnabled = true;
             initialized = true;
@@ -183,6 +184,14 @@ public partial class MainWindow : Window
 
     private void Sources_Click(object sender, RoutedEventArgs e) => ShowSources();
 
+    private void ShowSourceNeedingAttention(string sourceId)
+    {
+        if (closing || !initialized || pauseOperation is { IsCompleted: false }) return;
+        if (!IsVisible) ShowWindow(this);
+        ShowSources();
+        sourcesWindow?.NavigateTo(sourceId);
+    }
+
     private void ShowSources()
     {
         if (closing || pauseOperation is { IsCompleted: false }) return;
@@ -224,7 +233,11 @@ public partial class MainWindow : Window
 
     private void Today_Click(object sender, RoutedEventArgs e) => ShowToday();
 
-    private async void ShowToday()
+    private void ShowToday() => OpenToday();
+
+    private void ShowMissedReminders() => OpenToday(showMissed: true);
+
+    private async void OpenToday(bool showMissed = false)
     {
         if (closing || !initialized || pauseOperation is { IsCompleted: false }) return;
         if (!IsVisible)
@@ -233,7 +246,9 @@ public partial class MainWindow : Window
             Show();
         }
         if (todayWindow?.IsLoaded != true)
-            todayWindow = new TodayWindow(repository, sourceTokens, ShowReview) { Owner = this };
+            todayWindow = new TodayWindow(repository, sourceTokens, ShowReview,
+                () => desktop?.ReminderVersion ?? 0, version => desktop?.ViewReminders(version)) { Owner = this };
+        if (showMissed) todayWindow.SelectMissedReminders();
         ShowWindow(todayWindow);
         await todayWindow.RefreshForOpenAsync();
     }

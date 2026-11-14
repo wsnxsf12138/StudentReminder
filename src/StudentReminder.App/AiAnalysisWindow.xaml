@@ -1,6 +1,8 @@
 <Window x:Class="StudentReminder.App.AiAnalysisWindow"
+        Style="{StaticResource AppWindow}"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:StudentReminder.App"
         Title="AI 分析 · 学生事务助理" Width="960" Height="710" MinWidth="760" MinHeight="620"
         FontFamily="Microsoft YaHei UI" FontSize="14" Background="#F3F6FA" WindowStartupLocation="CenterOwner"
         Loaded="Window_Loaded" Closing="Window_Closing" Closed="Window_Closed">
@@ -156,7 +158,16 @@
               </DataGridTemplateColumn>
               <DataGridTextColumn Header="发送时间" Binding="{Binding Time}" Width="150" IsReadOnly="True"/>
               <DataGridTextColumn Header="脱敏正文" Binding="{Binding Snippet}" Width="*" IsReadOnly="True"/>
-              <DataGridTextColumn Header="分析状态" Binding="{Binding Status}" Width="220" IsReadOnly="True"/>
+              <DataGridTemplateColumn Header="分析状态" Width="220" IsReadOnly="True" SortMemberPath="Status">
+                <DataGridTemplateColumn.CellTemplate>
+                  <DataTemplate>
+                    <DockPanel Margin="3,0">
+                      <Image Style="{StaticResource StatusIcon}" Tag="{Binding Glyph}" DockPanel.Dock="Left" />
+                      <TextBlock Text="{Binding Status}" VerticalAlignment="Center" />
+                    </DockPanel>
+                  </DataTemplate>
+                </DataGridTemplateColumn.CellTemplate>
+              </DataGridTemplateColumn>
             </DataGrid.Columns>
           </DataGrid>
           <TextBox x:Name="PreviewText" Grid.Row="3" IsReadOnly="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto"
@@ -179,7 +190,11 @@
       <Button x:Name="PauseButton" DockPanel.Dock="Right" Content="暂停分析" Click="Pause_Click" Padding="10,5"
               IsEnabled="False" VerticalAlignment="Center" AutomationProperties.AutomationId="PauseAnalysis"/>
       <StackPanel Margin="0,0,10,0">
-        <TextBlock x:Name="RunStatus" Text="分析已暂停。" TextWrapping="Wrap" Foreground="#0F766E" AutomationProperties.AutomationId="AiRunStatus"/>
+        <DockPanel>
+          <Image x:Name="RunStatusIcon" Style="{StaticResource StatusIcon}" DockPanel.Dock="Left"
+                 Tag="{x:Static local:StatusGlyph.Paused}" />
+          <TextBlock x:Name="RunStatus" Text="分析已暂停。" TextWrapping="Wrap" Foreground="#0F766E" AutomationProperties.AutomationId="AiRunStatus"/>
+        </DockPanel>
         <TextBlock x:Name="UsageLabel" TextWrapping="Wrap" Margin="0,4,0,0" FontSize="12" Foreground="#475569"/>
       </StackPanel>
     </DockPanel>

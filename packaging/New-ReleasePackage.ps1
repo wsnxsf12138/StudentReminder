@@ -1,8 +1,8 @@
-﻿#requires -Version 5.1
+#requires -Version 5.1
 [CmdletBinding()]
 param(
     [ValidatePattern('^[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z]+(?:[.-][0-9A-Za-z]+)*)?$')]
-    [string]$Version = '0.6.8-alpha',
+    [string]$Version = '0.6.9-alpha',
     [switch]$IncludeModels,
     [string]$OutputRoot = 'artifacts/release'
 )
@@ -167,6 +167,31 @@ $sampleHashes = @{
     'messages.synthetic.json' = 'DA82477F0FB25375CF0016E5F7619429C875C394F81358497E3BF127EBD8E654'
     'messages.conflicts.synthetic.json' = '089F6BA2FFB61008D3D5BF042F0E5F8B4B9657D35B200304A2CCA33AAFEAF663'
 }
+$iconAssets = @(
+    'src/StudentReminder.App/Assets/Icons/completed-dark.svg',
+    'src/StudentReminder.App/Assets/Icons/completed-light.svg',
+    'src/StudentReminder.App/Assets/Icons/failure-dark.svg',
+    'src/StudentReminder.App/Assets/Icons/failure-light.svg',
+    'src/StudentReminder.App/Assets/Icons/paused-dark.svg',
+    'src/StudentReminder.App/Assets/Icons/paused-light.svg',
+    'src/StudentReminder.App/Assets/Icons/pending-review-dark.svg',
+    'src/StudentReminder.App/Assets/Icons/pending-review-light.svg',
+    'src/StudentReminder.App/Assets/Icons/reminder-dark.svg',
+    'src/StudentReminder.App/Assets/Icons/reminder-light.svg',
+    'src/StudentReminder.App/Assets/Icons/student-reminder-small.svg',
+    'src/StudentReminder.App/Assets/Icons/student-reminder.ico',
+    'src/StudentReminder.App/Assets/Icons/student-reminder.svg',
+    'src/StudentReminder.App/Assets/Icons/syncing-dark.svg',
+    'src/StudentReminder.App/Assets/Icons/syncing-light.svg',
+    'src/StudentReminder.App/Assets/Icons/tray-attention.ico',
+    'src/StudentReminder.App/Assets/Icons/tray-attention.svg',
+    'src/StudentReminder.App/Assets/Icons/tray-paused.ico',
+    'src/StudentReminder.App/Assets/Icons/tray-paused.svg',
+    'src/StudentReminder.App/Assets/Icons/tray-ready.ico',
+    'src/StudentReminder.App/Assets/Icons/tray-ready.svg',
+    'src/StudentReminder.App/Assets/Icons/tray-syncing.ico',
+    'src/StudentReminder.App/Assets/Icons/tray-syncing.svg'
+)
 foreach ($relative in $sourceFiles) {
     Assert-NoPrivatePayload $relative $null
     if ($relative -match '\.json$' -and
@@ -175,7 +200,8 @@ foreach ($relative in $sourceFiles) {
         !($relative.StartsWith('tests/Fixtures/') -and $sampleHashes.ContainsKey([IO.Path]::GetFileName($relative)))) {
         throw '源码中存在未经核对的 JSON 文件，已停止出包。'
     }
-    if ($relative -notmatch '\.(?:cs|csproj|json|md|ps1|sql|xaml|props|sln)$' -and
+    if ($relative -cnotin $iconAssets -and
+        $relative -notmatch '\.(?:cs|csproj|json|md|ps1|sql|xaml|props|sln)$' -and
         $relative -notin @('.gitattributes', '.gitignore', 'tools/services/licenses/Moect-GPL-3.0.txt', 'LICENSE', 'THIRD-PARTY-NOTICES.txt',
             'packaging/使用说明.txt', 'packaging/SOURCE-README.txt') -and $relative -notmatch '^notices/[A-Za-z0-9.-]+\.txt$') {
         throw '源码中存在未经核对的文件类型，已停止出包。'

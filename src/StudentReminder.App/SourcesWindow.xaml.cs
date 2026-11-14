@@ -16,6 +16,7 @@ public partial class SourcesWindow : Window
     private readonly CancellationTokenSource lifetime = new();
     private readonly System.Windows.Threading.DispatcherTimer timer = new() { Interval = TimeSpan.FromSeconds(3) };
     private SourceDefinition? selected;
+    private string? pendingSourceId;
     private bool busy;
     private bool loading;
 
@@ -32,7 +33,11 @@ public partial class SourcesWindow : Window
             if (busy) return;
             try { await RefreshHealthAsync(); }
             catch (OperationCanceledException) when (lifetime.IsCancellationRequested) { }
-            catch (Exception) { HealthLabel.Text = "无法刷新本地同步状态。"; }
+            catch (Exception)
+            {
+                HealthIcon.Tag = StatusGlyph.Failure;
+                HealthLabel.Text = "无法刷新本地同步状态。";
+            }
         };
     }
 
@@ -50,6 +55,20 @@ public partial class SourcesWindow : Window
         SourceList.SelectedItem = SourceList.Items.Cast<SourceRow>().FirstOrDefault(row => row.Source.Id == preferredId);
         loading = false;
         if (SourceList.SelectedItem is SourceRow row) await DisplayAsync(row.Source);
+    }
+
+    internal void NavigateTo(string sourceId)
+    {
+        pendingSourceId = sourceId;
+        _ = NavigatePendingAsync();
+    }
+
+    private Task NavigatePendingAsync()
+    {
+        if (!IsLoaded || busy || lifetime.IsCancellationRequested || pendingSourceId is not { } id)
+            return Task.CompletedTask;
+        pendingSourceId = null;
+        return RunAsync(() => ReloadAsync(id));
     }
 
     private async Task DisplayAsync(SourceDefinition source)
@@ -74,6 +93,7 @@ public partial class SourcesWindow : Window
         var id = selected.Id;
         var source = (await Task.Run(() => store.ReadSourcesAsync(lifetime.Token))).Single(row => row.Id == id);
         if (selected?.Id != id) return;
+        HealthIcon.Tag = TrayStatus.SourceGlyph(source);
         HealthLabel.Text = $"{SourceStatus.Describe(source.Health)} · 最近成功同步：{(source.LastOkAt is { } time ? time.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss zzz") : "尚无记录")}";
     }
 
@@ -89,6 +109,7 @@ public partial class SourcesWindow : Window
         AliasBox.Clear(); AliasBox.IsEnabled = true; PollBox.Text = "60"; DaysBox.Text = "7";
         PushBox.IsChecked = true;
         ConversationGrid.ItemsSource = null; HealthLabel.Text = "最近成功同步：尚无记录";
+        HealthIcon.Tag = StatusGlyph.None;
         StatusLabel.Text = "新配置默认关闭。填写本地账号别名并保存后，可检查连接。"; loading = false;
     }
 
@@ -206,6 +227,7 @@ public partial class SourcesWindow : Window
         { StatusLabel.Text = "无法启用：同一时刻只允许一个同平台来源采集，请先暂停另一个。"; }
         catch (Exception) { StatusLabel.Text = "操作失败：请检查本地存储、Windows 用户凭据或第三方服务状态；未展示敏感异常信息。"; }
         finally { busy = false; ConfigurationPanel.IsEnabled = true; }
+        await NavigatePendingAsync();
     }
 
     private void Window_Closed(object? sender, EventArgs e) { timer.Stop(); lifetime.Cancel(); }

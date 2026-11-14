@@ -1,4 +1,5 @@
 <Window x:Class="StudentReminder.App.MoectWatchWindow"
+        Style="{StaticResource AppWindow}"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Moect 备用导入 · 学生事务助理" Width="790" Height="690" MinWidth="650" MinHeight="530"

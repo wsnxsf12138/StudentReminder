@@ -12,6 +12,7 @@
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
     <ProjectReference Include="../../src/StudentReminder.Core/StudentReminder.Core.csproj" />
+    <ProjectReference Include="../../src/StudentReminder.App/StudentReminder.App.csproj" />
     <ProjectReference Include="../../src/StudentReminder.Data/StudentReminder.Data.csproj" />
     <ProjectReference Include="../../src/StudentReminder.Ingestion/StudentReminder.Ingestion.csproj" />
     <ProjectReference Include="../../src/StudentReminder.WxLocal/StudentReminder.WxLocal.csproj" />
