@@ -7,6 +7,15 @@ namespace StudentReminder.App;
 
 public partial class ReminderCalendarView : UserControl
 {
+    public static readonly DependencyProperty DayColumnCountProperty = DependencyProperty.Register(
+        nameof(DayColumnCount), typeof(int), typeof(ReminderCalendarView), new PropertyMetadata(7));
+
+    public int DayColumnCount
+    {
+        get => (int)GetValue(DayColumnCountProperty);
+        private set => SetValue(DayColumnCountProperty, value);
+    }
+
     private static DateOnly Today => DateOnly.FromDateTime(DateTime.Today);
     private DateOnly selectedDate = Today;
     private DateOnly displayedToday = Today;
@@ -77,6 +86,7 @@ public partial class ReminderCalendarView : UserControl
         PreviousMonth.IsEnabled = month != DateOnly.MinValue;
         NextMonth.IsEnabled = month.Year != 9999 || month.Month != 12;
         RenderSelection();
+        if (Days.SelectedItem is { } selected) Days.ScrollIntoView(selected);
         if (focusSelected) FocusSelectedDay();
     }
 
@@ -94,6 +104,23 @@ public partial class ReminderCalendarView : UserControl
     }
 
     private static string Weekday(DayOfWeek day) => "星期" + "日一二三四五六"[(int)day];
+
+    private void Days_SizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        if (!e.WidthChanged || e.NewSize.Width <= 0) return;
+
+        var columns = e.NewSize.Width switch
+        {
+            >= 770 => 7,
+            >= 660 => 5,
+            _ => 4
+        };
+        if (DayColumnCount == columns) return;
+
+        DayColumnCount = columns;
+        WeekdayHeadings.Visibility = columns == 7 ? Visibility.Visible : Visibility.Collapsed;
+        if (Days.SelectedItem is { } selected) Days.ScrollIntoView(selected);
+    }
 
     private void Days_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
@@ -125,8 +152,8 @@ public partial class ReminderCalendarView : UserControl
         {
             Key.Left => -1,
             Key.Right => 1,
-            Key.Up => -7,
-            Key.Down => 7,
+            Key.Up => -DayColumnCount,
+            Key.Down => DayColumnCount,
             _ => 0
         };
         if (offset == 0) return;

@@ -54,6 +54,7 @@
     </Style>
     <Style x:Key="CalendarDayItem" TargetType="ListBoxItem">
       <Setter Property="Margin" Value="3" />
+      <Setter Property="MinHeight" Value="55" />
       <Setter Property="HorizontalContentAlignment" Value="Stretch" />
       <Setter Property="VerticalContentAlignment" Value="Stretch" />
       <Setter Property="AutomationProperties.Name" Value="{Binding Label}" />
@@ -170,7 +171,7 @@
           </StackPanel>
         </Grid>
 
-        <UniformGrid Grid.Row="1" Columns="7" Margin="0,0,0,5">
+        <UniformGrid x:Name="WeekdayHeadings" Grid.Row="1" Columns="7" Margin="0,0,0,5">
           <TextBlock Text="一" Style="{StaticResource Weekday}" />
           <TextBlock Text="二" Style="{StaticResource Weekday}" />
           <TextBlock Text="三" Style="{StaticResource Weekday}" />
@@ -181,13 +182,21 @@
         </UniformGrid>
 
         <ListBox x:Name="Days" Grid.Row="2" Background="Transparent" BorderThickness="0" Padding="0"
+                 SizeChanged="Days_SizeChanged"
                  ItemContainerStyle="{StaticResource CalendarDayItem}" SelectionChanged="Days_SelectionChanged"
                  PreviewKeyDown="Days_PreviewKeyDown" AutomationProperties.Name="事项月历">
           <ListBox.Template>
-            <ControlTemplate TargetType="ListBox"><ItemsPresenter /></ControlTemplate>
+            <ControlTemplate TargetType="ListBox">
+              <ScrollViewer x:Name="CalendarScroll" Focusable="False" VerticalScrollBarVisibility="Auto"
+                            HorizontalScrollBarVisibility="Disabled">
+                <ItemsPresenter MinHeight="{Binding ViewportHeight, ElementName=CalendarScroll}" />
+              </ScrollViewer>
+            </ControlTemplate>
           </ListBox.Template>
           <ListBox.ItemsPanel>
-            <ItemsPanelTemplate><UniformGrid Columns="7" /></ItemsPanelTemplate>
+            <ItemsPanelTemplate>
+              <UniformGrid Columns="{Binding DayColumnCount, RelativeSource={RelativeSource AncestorType=UserControl}}" />
+            </ItemsPanelTemplate>
           </ListBox.ItemsPanel>
           <ListBox.ItemTemplate>
             <DataTemplate>
@@ -198,9 +207,12 @@
                   <RowDefinition Height="23" />
                   <RowDefinition Height="*" />
                 </Grid.RowDefinitions>
-                <TextBlock x:Name="DayNumber" Grid.Row="1" Text="{Binding Number}" FontSize="18"
-                           FontWeight="Normal"
-                           Foreground="{StaticResource CalendarInk}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                  <TextBlock x:Name="DayNumber" Text="{Binding Number}" FontSize="18" FontWeight="Normal"
+                             Foreground="{StaticResource CalendarInk}" />
+                  <TextBlock x:Name="DayWeekday" Text="{Binding Weekday}" FontSize="12" FontWeight="Normal"
+                             Foreground="{StaticResource CalendarMuted}" Margin="5,0,0,0" VerticalAlignment="Center" />
+                </StackPanel>
                 <Border x:Name="PreviewBadge" Grid.Row="2" DataContext="{Binding Preview}" Style="{StaticResource EntryBadge}"
                         HorizontalAlignment="Center" VerticalAlignment="Center" Margin="4,0" ToolTip="{Binding Title}">
                   <DockPanel>
@@ -213,6 +225,9 @@
                 </Border>
               </Grid>
               <DataTemplate.Triggers>
+                <DataTrigger Binding="{Binding DayColumnCount, RelativeSource={RelativeSource AncestorType=UserControl}}" Value="7">
+                  <Setter TargetName="DayWeekday" Property="Visibility" Value="Collapsed" />
+                </DataTrigger>
                 <DataTrigger Binding="{Binding Preview}" Value="{x:Null}">
                   <Setter TargetName="PreviewBadge" Property="Visibility" Value="Collapsed" />
                 </DataTrigger>
