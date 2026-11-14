@@ -111,9 +111,9 @@
       <RowDefinition Height="*" />
     </Grid.RowDefinitions>
     <Grid.ColumnDefinitions>
-      <ColumnDefinition Width="*" />
+      <ColumnDefinition Width="3*" MinWidth="610" />
       <ColumnDefinition Width="14" />
-      <ColumnDefinition Width="300" />
+      <ColumnDefinition Width="*" MinWidth="245" />
     </Grid.ColumnDefinitions>
     <Border Grid.ColumnSpan="3" CornerRadius="14" Margin="0,0,0,12" Padding="20,10">
       <Border.Background>
@@ -242,6 +242,33 @@
         </DockPanel>
       </Grid>
     </Border>
+
+    <GridSplitter Grid.Row="1" Grid.Column="1" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+                  ResizeDirection="Columns" ResizeBehavior="PreviousAndNext" KeyboardIncrement="16"
+                  Cursor="SizeWE" ToolTip="左右拖动，调整日程宽度"
+                  AutomationProperties.Name="调整月历和日程宽度">
+      <GridSplitter.Template>
+        <ControlTemplate TargetType="GridSplitter">
+          <Border x:Name="Track" Background="Transparent" CornerRadius="7" Margin="2,4">
+            <Border x:Name="Grip" Background="#BAC9C1" Width="3" Height="34" CornerRadius="2"
+                    HorizontalAlignment="Center" VerticalAlignment="Center" />
+          </Border>
+          <ControlTemplate.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+              <Setter TargetName="Track" Property="Background" Value="#E9F0EC" />
+              <Setter TargetName="Grip" Property="Background" Value="#287A70" />
+            </Trigger>
+            <Trigger Property="IsDragging" Value="True">
+              <Setter TargetName="Track" Property="Background" Value="#DFEBE5" />
+              <Setter TargetName="Grip" Property="Background" Value="#287A70" />
+            </Trigger>
+            <Trigger Property="IsKeyboardFocused" Value="True">
+              <Setter TargetName="Grip" Property="Background" Value="#287A70" />
+            </Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </GridSplitter.Template>
+    </GridSplitter>
 
     <Border Grid.Row="1" Grid.Column="2" Background="White" BorderBrush="#EBEFED" BorderThickness="1"
             CornerRadius="16" Padding="16,15">
