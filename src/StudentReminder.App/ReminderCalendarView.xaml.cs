@@ -117,8 +117,7 @@ public partial class ReminderCalendarView : UserControl
         if (e.Key is Key.Enter or Key.Space)
         {
             e.Handled = true;
-            if (AgendaScroll.IsVisible)
-                Agenda.MoveFocus(new TraversalRequest(FocusNavigationDirection.First));
+            if (AgendaScroll.IsVisible) AgendaScroll.Focus();
             return;
         }
 

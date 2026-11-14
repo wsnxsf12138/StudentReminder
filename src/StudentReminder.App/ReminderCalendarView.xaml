@@ -257,7 +257,8 @@
                 VerticalAlignment="Top" IsHitTestVisible="False">
           <TextBlock x:Name="EmptyDay" Foreground="{StaticResource CalendarMuted}" FontWeight="Normal" TextWrapping="Wrap" />
         </Border>
-        <ScrollViewer x:Name="AgendaScroll" Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+        <ScrollViewer x:Name="AgendaScroll" Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
+                      Focusable="True" AutomationProperties.Name="当天安排">
           <ItemsControl x:Name="Agenda" AutomationProperties.AutomationId="CalendarAgenda">
             <ItemsControl.ItemTemplate>
               <DataTemplate>
