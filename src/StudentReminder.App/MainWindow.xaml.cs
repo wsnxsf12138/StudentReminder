@@ -4,7 +4,6 @@ using System.IO;
 using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Input;
 using System.Windows.Threading;
 using Microsoft.Win32;
 using StudentReminder.Core;
@@ -96,14 +95,10 @@ public partial class MainWindow : Window
         if (e.Source == HomeTabs && HomeTabs.SelectedItem == CalendarTab) await RefreshCalendarAsync();
     }
 
-    private void Window_PreviewKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
-    {
-        if (e.Key == Key.Escape && CalendarView.TryCloseAgenda()) e.Handled = true;
-    }
-
     private async Task RefreshCalendarAsync()
     {
         if (!initialized || closing || !IsVisible || HomeTabs.SelectedItem != CalendarTab) return;
+        CalendarView.RefreshLocalTime();
         var read = ++calendarRead;
         var ct = lifetime.Token;
         try
@@ -291,7 +286,7 @@ public partial class MainWindow : Window
 
     private async void RefreshToday()
     {
-        CalendarView.RefreshTodayMarker();
+        CalendarView.RefreshLocalTime();
         if (todayWindow is { IsVisible: true } window) await window.RefreshCachedAsync();
     }
 

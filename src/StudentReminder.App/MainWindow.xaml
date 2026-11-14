@@ -6,7 +6,7 @@
         Title="AI 学生事务助理" Width="1240" Height="850"
         MinWidth="1080" MinHeight="760" Background="#F7F9F8"
         FontFamily="Microsoft YaHei UI" FontSize="14"
-        Closed="Window_Closed" PreviewKeyDown="Window_PreviewKeyDown">
+        Closed="Window_Closed">
   <Grid Margin="22,16,22,12">
     <Grid.RowDefinitions>
       <RowDefinition Height="Auto" />

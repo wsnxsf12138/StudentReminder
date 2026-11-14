@@ -19,6 +19,7 @@ public partial class ReminderCalendarView : UserControl
     public ReminderCalendarView()
     {
         InitializeComponent();
+        RefreshLocalTime();
         RenderMonth();
     }
 
@@ -37,8 +38,19 @@ public partial class ReminderCalendarView : UserControl
         RenderSelection();
     }
 
-    internal void RefreshTodayMarker()
+    internal void RefreshLocalTime()
     {
+        var now = DateTime.Now;
+        var message = now.Hour switch
+        {
+            < 6 => "夜深了，记得给自己一点休息时间。",
+            < 11 => "早上好，按自己的节奏开启今天。",
+            < 14 => "中午好，忙碌之余也记得好好吃饭。",
+            < 18 => "下午好，慢慢来，一件一件做就好。",
+            _ => "晚上好，今天辛苦了，记得给自己留点时间。"
+        };
+        Greeting.Text = message;
+        GreetingDate.Text = $"{now:M月d日} · {Weekday(now.DayOfWeek)}";
         if (displayedToday != Today) RenderMonth();
     }
 
@@ -72,11 +84,13 @@ public partial class ReminderCalendarView : UserControl
     {
         var dayEntries = entries[selectedDate].ToArray();
         DayTitle.Text = $"{selectedDate:M月d日} {Weekday(selectedDate.DayOfWeek)}";
-        DaySummary.Text = loaded ? $"{dayEntries.Length} 条安排" : "";
+        DaySummary.Text = loaded && dayEntries.Length > 0 ? $"{dayEntries.Length} 条安排" : "";
+        DaySummary.Visibility = DaySummary.Text.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
         Agenda.ItemsSource = dayEntries;
-        EmptyDay.Text = loaded ? "这一天没有已确认的安排。" :
+        EmptyDay.Text = loaded ? "这一天还没有安排。" :
             LoadError.Visibility == Visibility.Visible ? "暂时无法读取安排。" : "正在读取本地事项…";
-        EmptyDay.Visibility = dayEntries.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
+        EmptyState.Visibility = dayEntries.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
+        AgendaScroll.Visibility = dayEntries.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
     }
 
     private static string Weekday(DayOfWeek day) => "星期" + "日一二三四五六"[(int)day];
@@ -96,7 +110,6 @@ public partial class ReminderCalendarView : UserControl
         e.Handled = true;
         Days.SelectedItem = day;
         FocusSelectedDay();
-        ShowAgenda();
     }
 
     private void Days_PreviewKeyDown(object sender, KeyEventArgs e)
@@ -104,7 +117,8 @@ public partial class ReminderCalendarView : UserControl
         if (e.Key is Key.Enter or Key.Space)
         {
             e.Handled = true;
-            ShowAgenda(focusPanel: true);
+            if (AgendaScroll.IsVisible)
+                Agenda.MoveFocus(new TraversalRequest(FocusNavigationDirection.First));
             return;
         }
 
@@ -157,24 +171,6 @@ public partial class ReminderCalendarView : UserControl
         selectedDate = Today;
         RenderMonth();
         AgendaScroll.ScrollToTop();
-    }
-
-    private void Agenda_Click(object sender, RoutedEventArgs e) => ShowAgenda(focusPanel: true);
-
-    private void ShowAgenda(bool focusPanel = false)
-    {
-        AgendaPanel.Visibility = Visibility.Visible;
-        if (focusPanel) CloseAgendaButton.Focus();
-    }
-
-    private void CloseAgenda_Click(object sender, RoutedEventArgs e) => TryCloseAgenda();
-
-    internal bool TryCloseAgenda()
-    {
-        if (!AgendaPanel.IsVisible) return false;
-        AgendaPanel.Visibility = Visibility.Collapsed;
-        FocusSelectedDay();
-        return true;
     }
 
     private void AgendaItem_Click(object sender, RoutedEventArgs e)

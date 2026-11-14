@@ -106,7 +106,31 @@
   </UserControl.Resources>
 
   <Grid>
-    <Border Background="White" BorderBrush="#EBEFED" BorderThickness="1" CornerRadius="18" Padding="23,18,23,17">
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto" />
+      <RowDefinition Height="*" />
+    </Grid.RowDefinitions>
+    <Grid.ColumnDefinitions>
+      <ColumnDefinition Width="*" />
+      <ColumnDefinition Width="14" />
+      <ColumnDefinition Width="300" />
+    </Grid.ColumnDefinitions>
+    <Border Grid.ColumnSpan="3" CornerRadius="14" Margin="0,0,0,12" Padding="20,10">
+      <Border.Background>
+        <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+          <GradientStop Offset="0" Color="#F6EEE1" />
+          <GradientStop Offset="1" Color="#F8F5ED" />
+        </LinearGradientBrush>
+      </Border.Background>
+      <DockPanel>
+        <TextBlock x:Name="GreetingDate" DockPanel.Dock="Right" Foreground="#6D6051" FontSize="13"
+                   FontWeight="Normal" VerticalAlignment="Center" Margin="16,0,0,0" />
+        <TextBlock x:Name="Greeting" Foreground="#41382E" FontSize="18" FontWeight="SemiBold"
+                   VerticalAlignment="Center" AutomationProperties.AutomationId="CalendarGreeting" />
+      </DockPanel>
+    </Border>
+
+    <Border Grid.Row="1" Background="White" BorderBrush="#EBEFED" BorderThickness="1" CornerRadius="16" Padding="16,13,16,11">
       <Grid>
         <Grid.RowDefinitions>
           <RowDefinition Height="Auto" />
@@ -114,19 +138,17 @@
           <RowDefinition Height="*" />
           <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
-        <Grid Margin="3,0,3,14">
+        <Grid Margin="3,0,3,8">
           <Grid.ColumnDefinitions><ColumnDefinition /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
           <StackPanel>
-            <TextBlock x:Name="MonthTitle" FontSize="28" FontWeight="Bold" Foreground="{StaticResource CalendarInk}"
+            <TextBlock x:Name="MonthTitle" FontSize="25" FontWeight="Bold" Foreground="{StaticResource CalendarInk}"
                        AutomationProperties.AutomationId="CalendarMonth" />
             <TextBlock x:Name="MonthSummary" Text="正在读取本地事项…" Foreground="{StaticResource CalendarMuted}"
-                       FontSize="14" FontWeight="Normal" Margin="0,9,0,0" />
+                       FontSize="13" FontWeight="Normal" Margin="0,4,0,0" />
           </StackPanel>
           <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Top">
             <Button Content="今天" Style="{StaticResource CalendarNav}" Click="Today_Click"
                     AutomationProperties.Name="回到今天" />
-            <Button x:Name="AgendaButton" Content="当天安排" Style="{StaticResource CalendarNav}"
-                    Click="Agenda_Click" AutomationProperties.AutomationId="OpenCalendarAgenda" />
             <Button x:Name="PreviousMonth" Style="{StaticResource CalendarNav}"
                     AutomationProperties.Name="上个月" Click="PreviousMonth_Click">
               <Viewbox Width="16" Height="16">
@@ -172,15 +194,15 @@
               <Grid ClipToBounds="True">
                 <Grid.RowDefinitions>
                   <RowDefinition Height="*" />
-                  <RowDefinition Height="28" />
-                  <RowDefinition Height="27" />
+                  <RowDefinition Height="24" />
+                  <RowDefinition Height="23" />
                   <RowDefinition Height="*" />
                 </Grid.RowDefinitions>
                 <TextBlock x:Name="DayNumber" Grid.Row="1" Text="{Binding Number}" FontSize="18"
                            FontWeight="Normal"
                            Foreground="{StaticResource CalendarInk}" HorizontalAlignment="Center" VerticalAlignment="Center" />
                 <Border x:Name="PreviewBadge" Grid.Row="2" DataContext="{Binding Preview}" Style="{StaticResource EntryBadge}"
-                        HorizontalAlignment="Center" VerticalAlignment="Center" Margin="7,0" ToolTip="{Binding Title}">
+                        HorizontalAlignment="Center" VerticalAlignment="Center" Margin="4,0" ToolTip="{Binding Title}">
                   <DockPanel>
                     <TextBlock x:Name="MoreCount" DockPanel.Dock="Right" Margin="4,0,0,0"
                                Text="{Binding DataContext.More, RelativeSource={RelativeSource AncestorType=ListBoxItem}}"
@@ -206,7 +228,7 @@
           </ListBox.ItemTemplate>
         </ListBox>
 
-        <DockPanel Grid.Row="3" Margin="3,12,3,0">
+        <DockPanel Grid.Row="3" Margin="3,8,3,0">
           <TextBlock x:Name="LoadError" DockPanel.Dock="Right" Text="读取事项失败，切回首页后会重试。"
                      Foreground="#A23B27" FontSize="12" VerticalAlignment="Center" Visibility="Collapsed" />
           <StackPanel Orientation="Horizontal">
@@ -221,31 +243,20 @@
       </Grid>
     </Border>
 
-    <Border x:Name="AgendaPanel" Visibility="Collapsed" HorizontalAlignment="Right" VerticalAlignment="Stretch"
-            Width="355" Margin="0,73,24,44" Background="White" BorderBrush="#DCE6E1" BorderThickness="1"
-            CornerRadius="14" Padding="16,13" KeyboardNavigation.TabNavigation="Cycle">
-      <Border.Effect>
-        <DropShadowEffect BlurRadius="26" ShadowDepth="4" Opacity="0.19" Color="#243E35" />
-      </Border.Effect>
+    <Border Grid.Row="1" Grid.Column="2" Background="White" BorderBrush="#EBEFED" BorderThickness="1"
+            CornerRadius="16" Padding="16,15">
       <Grid>
         <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
-        <DockPanel Margin="0,0,0,10">
-          <Button x:Name="CloseAgendaButton" DockPanel.Dock="Right" Style="{StaticResource CalendarNav}"
-                  VerticalAlignment="Top" Click="CloseAgenda_Click" AutomationProperties.Name="关闭当天安排">
-            <Viewbox Width="15" Height="15">
-              <Canvas Width="24" Height="24">
-                <Path Data="{StaticResource IconClose}" Style="{StaticResource NavigationIcon}"
-                      Stroke="{Binding Foreground, ElementName=CloseAgendaButton}" />
-              </Canvas>
-            </Viewbox>
-          </Button>
-          <StackPanel>
-            <TextBlock x:Name="DayTitle" FontSize="19" FontWeight="SemiBold" Foreground="{StaticResource CalendarInk}"
-                       AutomationProperties.AutomationId="CalendarSelectedDate" />
-            <TextBlock x:Name="DaySummary" Foreground="{StaticResource CalendarMuted}" FontSize="12" Margin="0,4,0,0" />
-          </StackPanel>
-        </DockPanel>
-        <TextBlock x:Name="EmptyDay" Grid.Row="1" Foreground="{StaticResource CalendarMuted}" TextWrapping="Wrap" />
+        <StackPanel Margin="0,0,0,12">
+          <TextBlock Text="当天安排" Foreground="{StaticResource StartForeground}" FontSize="13" FontWeight="Normal" />
+          <TextBlock x:Name="DayTitle" FontSize="20" FontWeight="SemiBold" Foreground="{StaticResource CalendarInk}"
+                     Margin="0,5,0,0" AutomationProperties.AutomationId="CalendarSelectedDate" />
+          <TextBlock x:Name="DaySummary" Foreground="{StaticResource CalendarMuted}" FontSize="12" FontWeight="Normal" Margin="0,4,0,0" />
+        </StackPanel>
+        <Border x:Name="EmptyState" Grid.Row="1" Background="#F6F8F7" CornerRadius="10" Padding="12"
+                VerticalAlignment="Top" IsHitTestVisible="False">
+          <TextBlock x:Name="EmptyDay" Foreground="{StaticResource CalendarMuted}" FontWeight="Normal" TextWrapping="Wrap" />
+        </Border>
         <ScrollViewer x:Name="AgendaScroll" Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
           <ItemsControl x:Name="Agenda" AutomationProperties.AutomationId="CalendarAgenda">
             <ItemsControl.ItemTemplate>

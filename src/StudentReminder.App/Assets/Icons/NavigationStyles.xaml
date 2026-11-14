@@ -15,7 +15,6 @@
   <Geometry x:Key="IconDownload">M12,3 V15 M8,11 L12,15 16,11 M4,16 V21 H20 V16</Geometry>
   <Geometry x:Key="IconPrevious">M14,6 L8,12 14,18</Geometry>
   <Geometry x:Key="IconNext">M10,6 L16,12 10,18</Geometry>
-  <Geometry x:Key="IconClose">M6,6 L18,18 M18,6 L6,18</Geometry>
 
   <Style x:Key="NavigationIcon" TargetType="Path">
     <Setter Property="StrokeThickness" Value="1.65" />
