@@ -17,7 +17,6 @@ internal sealed record CalendarEntry(ReviewedEvent Event, DateOnly Date, TimeOnl
 internal sealed record CalendarDay(DateOnly? Date, bool IsInMonth, bool IsToday, IReadOnlyList<CalendarEntry> Entries)
 {
     public string Number => Date?.Day.ToString() ?? "";
-    public string Weekday => Date is { } date ? "周" + "日一二三四五六"[(int)date.DayOfWeek] : "";
     public string Label => Date is { } date
         ? $"{date:yyyy年M月d日}，{(Entries.Count == 0 ? "无安排" : $"{Entries.Count} 条安排")}"
         : "";
